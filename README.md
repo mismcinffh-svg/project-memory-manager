@@ -41,13 +41,53 @@
 - **類型過濾**：`memory_search("項目名 技術")` 查找技術細節
 - **決策追溯**：`memory_search("項目名 決策")` 查找決策記錄
 
-## 快速開始
+### 🎮 交互式設置嚮導 (v4.0.0 新增)
+- **方向鍵導航**：使用 ↑↓←→ 鍵選擇，模仿 `openclaw config` 體驗
+- **簡單顏色**：青/綠/黃/藍色顯示，增強視覺效果
+- **進度條百分比**：實時顯示設置進度，清晰直觀
+- **自動環境檢測**：智能識別 Git、GitHub CLI、Telegram 配置
+- **雙模式支持**：curses 圖形界面失敗時自動回退到文本模式
+- **配置持久化**：JSON 格式保存到 `~/.openclaw/project-memory-config.json`
+- **安全設計**：不存儲敏感信息，支持環境變量和安全提示
 
-### 安裝方法
+## 🚀 快速開始
 
-#### 方法一：標準技能安裝（推薦）
+### 全新交互式設置嚮導 (v4.0.0+)
+
+**無需命令行知識，零配置上手！**
+
 ```bash
-# 1. 將技能包複製到workspace
+# 1. 運行設置嚮導（推薦）
+cd project-memory-manager
+python scripts/setup.py
+```
+
+設置嚮導提供：
+- **方向鍵選擇**：使用 ↑↓←→ 鍵導航，無需打字
+- **進度條顯示**：實時百分比進度，清晰直觀
+- **自動檢測**：Git、GitHub CLI、Telegram 自動配置
+- **雙模式支持**：圖形界面失敗時自動回退到文本模式
+
+**界面預覽**：
+```
+┌─────────────────────────────────────┐
+│    Project Memory Manager 設置嚮導    │
+├─────────────────────────────────────┤
+│  請選擇設置模式：                    │
+│                                      │
+│    > 快速設置（推薦） <              │
+│      自動檢測並配置最常用選項        │
+│                                      │
+│      高級設置                        │
+│      自定義每個配置選項              │
+│                                      │
+│      檢查當前配置                    │
+│      查看和驗證現有配置              │
+└─────────────────────────────────────┘
+方向鍵: 選擇 | 回車: 確認 | ESC: 返回
+```
+
+### 傳統安裝方法
 cp project-memory-manager.skill ~/.openclaw/workspace-[your-agent]/
 
 # 2. 讓Agent閱讀技能文件
@@ -90,7 +130,13 @@ project-memory-manager/
 ├── config.json           # 配置模板
 ├── scripts/              # Python腳本
 │   ├── create.py        # 項目創建腳本
-│   └── init.py          # 初始化腳本
+│   ├── init.py          # 初始化腳本
+│   ├── setup.py         # 設置嚮導入口點
+│   ├── demo_menu.py     # 演示腳本
+│   └── interactive/     # 交互式模塊
+│       ├── menu_engine.py    # 選單引擎
+│       ├── progress_bar.py   # 進度條系統
+│       └── setup_wizard.py   # 設置嚮導核心
 ├── references/           # 參考文檔
 │   ├── best-practices.md # 最佳實踐
 │   └── troubleshooting.md # 故障排除

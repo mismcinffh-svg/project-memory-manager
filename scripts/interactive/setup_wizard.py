@@ -28,7 +28,7 @@ class ConfigManager:
     CONFIG_FILE = CONFIG_DIR / "project-memory-config.json"
     
     DEFAULT_CONFIG = {
-        "version": "1.0.0",
+        "version": "4.0.0",
         "setup": {
             "completed": False,
             "mode": "quick",
@@ -307,7 +307,7 @@ class SetupWizard:
         stdscr.addstr(title_y, title_x, title, curses.A_BOLD)
         
         # 顯示版本
-        version = f"版本: {self.config.get('version', '1.0.0')}"
+        version = f"版本: {self.config.get('version', '4.0.0')}"
         version_x = max(0, (width - len(version)) // 2)
         stdscr.addstr(title_y + 2, version_x, version)
         

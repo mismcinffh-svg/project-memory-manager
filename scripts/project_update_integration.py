@@ -366,6 +366,8 @@ def main():
     parser.add_argument('--update-summary', action='store_true', help='更新專櫃摘要')
     parser.add_argument('--no-update-summary', action='store_true', help='不更新專櫃摘要')
     parser.add_argument('--demo', action='store_true', help='運行交互式演示')
+    parser.add_argument('--yes', action='store_true', help='自動確認，不詢問')
+    parser.add_argument('--background', action='store_true', help='後台執行，不阻塞')
     
     args = parser.parse_args()
     
@@ -383,22 +385,58 @@ def main():
     elif args.project:
         # 指定項目直接運行
         update_summary = args.update_summary or (not args.no_update_summary)
-        success, new_version = integration.run_full_update_workflow(args.project, update_summary)
         
-        if success:
-            print(f"✅ 更新成功: {args.project} v{new_version}")
+        # 檢查是否需要後台執行
+        if args.background:
+            # 後台執行，不阻塞
+            import subprocess
+            import sys
+            
+            # 構建命令行參數
+            cmd = [sys.executable, __file__]
+            if args.workspace:
+                cmd.extend(['--workspace', args.workspace])
+            cmd.extend(['--project', args.project])
+            if update_summary:
+                cmd.append('--update-summary')
+            else:
+                cmd.append('--no-update-summary')
+            cmd.append('--yes')  # 後台執行自動確認
+            
+            # 後台啟動
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            print(f"🔧 後台執行已啟動 (PID: {process.pid})")
+            print(f"   項目: {args.project}")
+            print(f"   專櫃更新: {'✅' if update_summary else '❌'}")
+            sys.exit(0)
         else:
-            print(f"❌ 更新失敗: {args.project}")
-            sys.exit(1)
+            # 前台執行
+            success, new_version = integration.run_full_update_workflow(args.project, update_summary)
+            
+            if success:
+                print(f"✅ 更新成功: {args.project} v{new_version}")
+            else:
+                print(f"❌ 更新失敗: {args.project}")
+                sys.exit(1)
     else:
         print("使用方法：")
         print("  --demo                   運行交互式演示")
         print("  --project <slug>         指定項目運行更新")
         print("  --update-summary         更新專櫃摘要（默認）")
         print("  --no-update-summary      不更新專櫃摘要")
+        print("  --yes                    自動確認，不詢問")
+        print("  --background             後台執行，不阻塞")
         print("\n示例：")
         print("  python project_update_integration.py --demo")
         print("  python project_update_integration.py --project project-memory-manager --update-summary")
+        print("  python project_update_integration.py --project project-memory-manager --update-summary --yes")
+        print("  python project_update_integration.py --project project-memory-manager --update-summary --background")
 
 if __name__ == "__main__":
     main()

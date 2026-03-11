@@ -1,6 +1,6 @@
 {
   "system": {
-    "version": "4.1.0",
+    "version": "4.1.1",
     "name": "project-memory-manager",
     "description": "通用項目記憶管理系統 - 帶對話摘要與版本管理",
     "author": "Nana (Sergio's Secretary)",
@@ -18,7 +18,12 @@
   "index": {
     "max_tokens": 200,
     "keywords_per_project": 3,
-    "status_options": ["active", "inactive", "completed", "archived"],
+    "status_options": [
+      "active",
+      "inactive",
+      "completed",
+      "archived"
+    ],
     "default_status": "active",
     "sort_by": "created",
     "sort_order": "desc"
@@ -28,9 +33,27 @@
     "max_projects_per_day": 10,
     "min_name_length": 2,
     "max_name_length": 50,
-    "blacklisted_keywords": ["測試", "示例", "temp", "test", "臨時", "草稿", "draft"],
-    "required_files": ["README.md", "project.json", "decisions.md"],
-    "optional_files": ["learnings_latest.md", "learnings_history.md", "technical_latest.md", "technical_history.md", "migrated_content.md"]
+    "blacklisted_keywords": [
+      "測試",
+      "示例",
+      "temp",
+      "test",
+      "臨時",
+      "草稿",
+      "draft"
+    ],
+    "required_files": [
+      "README.md",
+      "project.json",
+      "decisions.md"
+    ],
+    "optional_files": [
+      "learnings_latest.md",
+      "learnings_history.md",
+      "technical_latest.md",
+      "technical_history.md",
+      "migrated_content.md"
+    ]
   },
   "tokens": {
     "estimation_method": "chars_div_3",
@@ -44,7 +67,14 @@
     "max_per_project": 5,
     "extract_chinese": true,
     "extract_english": true,
-    "stopwords": ["這個", "那個", "還有", "然後", "所以", "因為"]
+    "stopwords": [
+      "這個",
+      "那個",
+      "還有",
+      "然後",
+      "所以",
+      "因為"
+    ]
   },
   "logging": {
     "enabled": true,
@@ -58,8 +88,14 @@
     "interval_days": 7,
     "max_backups": 10,
     "backup_directory": "projects/_backups",
-    "include_files": ["INDEX.md", "config.json"],
-    "exclude_patterns": ["*.log", "*.tmp"]
+    "include_files": [
+      "INDEX.md",
+      "config.json"
+    ],
+    "exclude_patterns": [
+      "*.log",
+      "*.tmp"
+    ]
   },
   "performance": {
     "cache_enabled": true,
@@ -71,7 +107,18 @@
     "openclaw_compatible": true,
     "requires_python": "3.8+",
     "skill_format": "standard_zip",
-    "install_methods": ["skill_package", "manual_copy"],
+    "install_methods": [
+      "skill_package",
+      "manual_copy"
+    ],
     "test_command": "python3 scripts/create.py manual \"測試項目\""
-  }
+  },
+  "upgrade_history": [
+    {
+      "from_version": "4.1.0",
+      "to_version": "4.1.0",
+      "time": "2026-03-11T18:03:45.425914",
+      "migrated_projects": true
+    }
+  ]
 }

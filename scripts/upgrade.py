@@ -421,6 +421,9 @@ def main():
     parser.add_argument('--source-dir', help='v4.1.0源代碼目錄')
     parser.add_argument('--yes', action='store_true', help='自動確認，不詢問')
     parser.add_argument('--backup-only', action='store_true', help='只備份不升級')
+    parser.add_argument('--check-only', action='store_true', help='只檢查版本，不升級')
+    parser.add_argument('--auto', action='store_true', help='自動檢測並升級到最新版本')
+    parser.add_argument('--github-check', action='store_true', help='從GitHub檢查最新版本')
     
     args = parser.parse_args()
     
@@ -437,6 +440,112 @@ def main():
         print("執行備份...")
         upgrader.backup_existing_files()
         print("備份完成")
+        return
+    
+    if args.check_only:
+        current_version = upgrader.detect_current_version()
+        print(f"📊 當前版本: v{current_version}")
+        print(f"📁 Workspace: {upgrader.workspace_dir}")
+        print(f"📦 技能目錄: {upgrader.skill_dir}")
+        return
+    
+    if args.github_check:
+        print("🔍 從GitHub檢查最新版本...")
+        try:
+            # 嘗試從GitHub獲取最新版本
+            import urllib.request
+            import json
+            
+            github_config_url = "https://raw.githubusercontent.com/mismcinffh-svg/project-memory-manager/main/config.json"
+            
+            response = urllib.request.urlopen(github_config_url, timeout=10)
+            data = json.load(response)
+            latest_version = data.get('system', {}).get('version', '未知')
+            
+            current_version = upgrader.detect_current_version()
+            
+            print(f"📊 版本對比:")
+            print(f"   本地版本: v{current_version}")
+            print(f"   GitHub最新版本: v{latest_version}")
+            
+            if current_version == latest_version:
+                print("✅ 已經是最新版本")
+            else:
+                print(f"🔄 有新版本可用: v{latest_version}")
+                print(f"   運行以下命令升級:")
+                print(f"   python3 {__file__} --auto --yes")
+                
+        except Exception as e:
+            print(f"❌ GitHub檢查失敗: {e}")
+            print("💡 請手動下載最新版本後運行升級:")
+            print(f"   python3 {__file__} --source-dir /path/to/latest/source")
+        return
+    
+    if args.auto:
+        print("🤖 自動升級模式")
+        print("🔍 檢查版本...")
+        
+        # 嘗試從GitHub獲取最新版本
+        try:
+            import urllib.request
+            import json
+            
+            github_config_url = "https://raw.githubusercontent.com/mismcinffh-svg/project-memory-manager/main/config.json"
+            response = urllib.request.urlopen(github_config_url, timeout=10)
+            data = json.load(response)
+            latest_version = data.get('system', {}).get('version')
+            
+            current_version = upgrader.detect_current_version()
+            
+            if current_version == latest_version:
+                print(f"✅ 已經是最新版本 (v{current_version})")
+                return
+            
+            print(f"🔄 發現新版本: v{current_version} → v{latest_version}")
+            
+            # 下載最新代碼到臨時目錄
+            import tempfile
+            import zipfile
+            import io
+            
+            print("⬇️  下載最新版本...")
+            github_zip_url = "https://github.com/mismcinffh-svg/project-memory-manager/archive/refs/heads/main.zip"
+            
+            response = urllib.request.urlopen(github_zip_url, timeout=30)
+            zip_data = io.BytesIO(response.read())
+            
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                zip_path = temp_path / "latest.zip"
+                
+                with open(zip_path, 'wb') as f:
+                    f.write(zip_data.getvalue())
+                
+                # 解壓
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(temp_path)
+                
+                # 找到解壓後目錄
+                extracted_dir = temp_path / "project-memory-manager-main"
+                if extracted_dir.exists():
+                    source_dir = extracted_dir
+                    print(f"📦 最新版本下載到: {source_dir}")
+                    
+                    # 運行升級
+                    success = upgrader.run_upgrade(source_dir)
+                    if not success:
+                        print("❌ 自動升級失敗")
+                        sys.exit(1)
+                else:
+                    print("❌ 解壓後找不到項目目錄")
+                    sys.exit(1)
+                    
+        except Exception as e:
+            print(f"❌ 自動升級失敗: {e}")
+            print("💡 請手動下載後運行:")
+            print(f"   python3 {__file__} --source-dir /path/to/latest/source")
+            sys.exit(1)
+        
         return
     
     # 如果提供了源目錄，轉換為Path

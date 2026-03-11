@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-03-11
+
+### Added
+- **對話摘要系統**：自動檢測「更新版本」、「同步上GitHub」等關鍵詞，觸發專櫃內容更新
+- **版本管理模塊**：自動版本號遞增（major/minor/patch）、CHANGELOG自動更新、Git操作集成
+- **文件結構升級**：`_latest` + `_history` 分離結構（learnings_latest.md, learnings_history.md, technical_latest.md, technical_history.md）
+- **完整更新工作流程**：專櫃摘要更新 + 版本遞增 + CHANGELOG更新 + GitHub同步一體化
+
+### New Features
+- **觸發檢測**：支持「commit」、「上github」、「git push」、「更新版本」、「version update」、「發布」等關鍵詞
+- **項目識別**：自動從消息提取項目名，或從最近項目推斷
+- **用戶確認**：詢問「要不要更新項目專櫃內容」，提供控制權
+- **智能版本遞增**：根據更新類型自動選擇major/minor/patch遞增
+- **Git自動化**：自動執行 git add/commit/tag/push 操作
+
+### Technical Components
+- **對話摘要引擎**：`conversation_summary.py` - 生成專櫃摘要內容
+- **版本管理器**：`version_manager.py` - 處理版本遞增與CHANGELOG更新
+- **集成協調器**：`project_update_integration.py` - 協調完整工作流程
+- **文件結構升級**：更新create.py支持分離文件結構
+
+### Workflow Integration
+- **專櫃更新路徑**：用戶確認後 → sessions_spawn生成摘要 → 更新_latest/_history文件
+- **版本更新路徑**：自動遞增版本號 → 更新CHANGELOG → 執行Git操作
+- **GitHub同步**：自動推送代碼和標籤到GitHub倉庫
+- **錯誤處理**：各步驟獨立錯誤處理，失敗時繼續其他操作
+
+### Compatibility
+- **向後兼容**：現有項目自動適配新文件結構
+- **配置升級**：config.json自動更新文件列表
+- **無破壞性更新**：現有項目數據完全保留
+- **漸進式採用**：用戶可選擇是否啟用對話摘要功能
+
 ## [4.0.0] - 2026-03-10
 
 ### Added

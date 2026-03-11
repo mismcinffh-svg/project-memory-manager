@@ -1,11 +1,11 @@
 {
   "system": {
-    "version": "4.0.0",
+    "version": "4.1.0",
     "name": "project-memory-manager",
-    "description": "通用項目記憶管理系統 - 帶交互式設置嚮導",
+    "description": "通用項目記憶管理系統 - 帶對話摘要與版本管理",
     "author": "Nana (Sergio's Secretary)",
     "created": "2026-03-05",
-    "updated": "2026-03-10"
+    "updated": "2026-03-11"
   },
   "auto_monitor": {
     "enabled": true,
@@ -29,8 +29,8 @@
     "min_name_length": 2,
     "max_name_length": 50,
     "blacklisted_keywords": ["測試", "示例", "temp", "test", "臨時", "草稿", "draft"],
-    "required_files": ["README.md", "project.json"],
-    "optional_files": ["technical.md", "decisions.md", "learnings.md", "migrated_content.md"]
+    "required_files": ["README.md", "project.json", "decisions.md"],
+    "optional_files": ["learnings_latest.md", "learnings_history.md", "technical_latest.md", "technical_history.md", "migrated_content.md"]
   },
   "tokens": {
     "estimation_method": "chars_div_3",

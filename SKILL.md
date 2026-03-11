@@ -47,7 +47,9 @@ metadata:
 1. **500 Tokens自動規則**：監測MEMORY.md，同一主題>500t自動創建項目歸檔
 2. **高效索引系統**：INDEX.md一行一項目，關鍵詞優先，狀態標記
 3. **用戶手動控制**：隨時說「開新項目 [名稱]」立即創建
-4. **智能檢索**：使用 `memory_search("關鍵詞")` 跨項目查找
+4. **對話摘要系統**：檢測「更新版本」、「同步上GitHub」等關鍵詞，自動更新專櫃內容
+5. **版本自動管理**：自動版本號遞增、CHANGELOG更新、GitHub同步
+6. **智能檢索**：使用 `memory_search("關鍵詞")` 跨項目查找
 
 **兼容性**：完全通用設計，無硬編碼路徑，適用任何OpenClaw Agent（workspace-secretary, workspace-pm, workspace-coder等）。
 
@@ -70,6 +72,16 @@ metadata:
 - **關鍵詞優先**：方便 `memory_search()` 檢索
 - **狀態可視化**：清晰標記項目進度
 - **位置指引**：快速定位項目文件夾
+
+### 🤖 對話摘要與版本管理（v4.1.0新功能）
+- **智能觸發檢測**：自動識別「commit」、「上github」、「更新版本」、「version update」等關鍵詞
+- **項目自動識別**：從消息提取項目名，或推斷最近項目
+- **用戶確認機制**：詢問「要不要更新項目專櫃內容」，保留控制權
+- **專櫃內容更新**：使用session_spawn生成摘要，更新_latest/_history文件
+- **自動版本遞增**：根據更新類型選擇major/minor/patch遞增
+- **CHANGELOG自動更新**：遵循Keep a Changelog格式，自動添加版本條目
+- **Git操作集成**：自動執行git add/commit/tag/push，同步到GitHub
+- **文件結構升級**：_latest + _history分離結構，清晰區分最新摘要與完整歷史
 
 ### 🔍 智能檢索優化
 - **跨項目搜索**：`memory_search("關鍵詞")` 檢索所有項目
@@ -137,6 +149,23 @@ python3 skills/project-memory-manager/scripts/create.py status
 python3 skills/project-memory-manager/scripts/create.py rebuild-index
 ```
 
+### 對話摘要與版本更新（v4.1.0）
+```bash
+# 運行完整更新工作流程演示
+python3 skills/project-memory-manager/scripts/project_update_integration.py --demo
+
+# 為指定項目運行更新（更新專櫃摘要）
+python3 skills/project-memory-manager/scripts/project_update_integration.py --project project-memory-manager --update-summary
+
+# 為指定項目運行更新（只更新版本，不更新專櫃摘要）
+python3 skills/project-memory-manager/scripts/project_update_integration.py --project project-memory-manager --no-update-summary
+
+# 版本管理工具
+python3 skills/project-memory-manager/scripts/version_manager.py --current
+python3 skills/project-memory-manager/scripts/version_manager.py --next --increment minor
+python3 skills/project-memory-manager/scripts/version_manager.py --increment patch --change "修復已知問題" --change "優化性能"
+```
+
 ## 系統架構
 
 ```
@@ -150,9 +179,11 @@ python3 skills/project-memory-manager/scripts/create.py rebuild-index
 │   ├── project-1/         # 項目1
 │   │   ├── project.json   # 項目配置
 │   │   ├── README.md      # 項目概述
-│   │   ├── technical.md   # 技術細節
-│   │   ├── decisions.md   # 關鍵決策
-│   │   └── learnings.md   # 學習總結
+│   │   ├── decisions.md   # 關鍵決策（完整歷史）
+│   │   ├── learnings_latest.md    # 學習最新摘要
+│   │   ├── learnings_history.md   # 學習歷史記錄
+│   │   ├── technical_latest.md    # 技術最新摘要
+│   │   └── technical_history.md   # 技術歷史記錄
 │   └── ...
 └── skills/project-memory-manager/  # 本技能
     ├── SKILL.md           # 技能文檔
@@ -253,7 +284,15 @@ python3 scripts/cleanup.py --days 30 --status inactive
 
 ## 版本歷史
 
-### v4.0.0 (當前版本)
+### v4.1.0 (當前版本)
+- ✅ **對話摘要系統**：自動檢測「更新版本」、「同步上GitHub」等關鍵詞，觸發專櫃內容更新
+- ✅ **版本管理模塊**：自動版本號遞增（major/minor/patch）、CHANGELOG自動更新、Git操作集成
+- ✅ **文件結構升級**：`_latest` + `_history` 分離結構，清晰區分最新摘要與完整歷史
+- ✅ **完整更新工作流程**：專櫃摘要更新 + 版本遞增 + CHANGELOG更新 + GitHub同步一體化
+- ✅ **觸發檢測與項目識別**：智能識別項目名稱，支持多種更新關鍵詞
+- ✅ **用戶確認機制**：詢問「要不要更新項目專櫃內容」，保留用戶控制權
+
+### v4.0.0 (舊版本)
 - ✅ **交互式設置嚮導**：方向鍵選擇、簡單顏色、進度條百分比
 - ✅ **智能環境檢測**：自動識別 Git、GitHub CLI、Telegram 配置
 - ✅ **雙模式界面**：curses 圖形界面 + 文本模式回退
@@ -298,6 +337,15 @@ python3 scripts/cleanup.py --days 30 --status inactive
 - 日誌記錄：詳細操作日誌便於調試
 - 健康檢查：定期驗證系統完整性
 
+### 對話摘要與版本管理系統（v4.1.0）
+1. **觸發檢測引擎**：正則表達式匹配多種更新關鍵詞，智能項目識別
+2. **對話摘要生成**：sessions_spawn調用低成本模型，提取決策、技術、學習要點
+3. **文件結構管理**：_latest文件替換更新，_history文件追加記錄，保持完整歷史
+4. **版本自動遞增**：語義化版本規範，支持major/minor/patch遞增邏輯
+5. **CHANGELOG自動化**：Keep a Changelog格式兼容，自動插入版本條目
+6. **Git操作流水線**：錯誤處理與重試機制，確保GitHub同步可靠性
+7. **用戶確認機制**：保留最終控制權，支持跳過摘要更新選項
+
 ## 性能指標
 
 | 指標 | 改善前 | 改善後 | 提升 |
@@ -309,7 +357,7 @@ python3 scripts/cleanup.py --days 30 --status inactive
 
 ## 支持與貢獻
 
-**技能位置**：Windows桌面 `project-memory-manager-v3.0.skill`
+**技能位置**：Windows桌面 `project-memory-manager-v4.1.0.skill`
 
 **作者**：Nana (Sergio's Secretary)  
 **技術顧問**：Sergio (尚晉IT總監)

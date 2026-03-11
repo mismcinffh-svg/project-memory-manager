@@ -179,7 +179,7 @@ class ProjectManager:
         return project_path
     
     def create_project_files(self, project_path: Path, project_name: str, description: str):
-        """創建項目文件"""
+        """創建項目文件 (_latest + _history 分離結構)"""
         templates_dir = self.projects_dir / "_templates"
         
         # 如果模板目錄不存在，創建默認模板
@@ -196,8 +196,17 @@ class ProjectManager:
             "keywords": json.dumps([project_name], ensure_ascii=False)
         }
         
-        # 創建標準文件
-        for filename in ["README.md", "technical.md", "decisions.md", "learnings.md"]:
+        # 創建標準文件（_latest + _history 分離結構）
+        file_list = [
+            "README.md",
+            "decisions.md",           # 決策完整歷史
+            "learnings_latest.md",    # 最新學習摘要
+            "learnings_history.md",   # 學習歷史記錄
+            "technical_latest.md",    # 最新技術摘要
+            "technical_history.md"    # 技術歷史記錄
+        ]
+        
+        for filename in file_list:
             template_file = templates_dir / filename
             output_file = project_path / filename
             
@@ -207,8 +216,21 @@ class ProjectManager:
                 content = template_content.format(**variables)
             else:
                 # 創建默認內容
-                content = f"# {filename.replace('.md', '')} - {project_name}\n\n"
-                content += f"創建時間: {variables['created_date']}\n\n"
+                if filename.endswith("_latest.md"):
+                    base_name = filename.replace("_latest.md", "")
+                    content = f"# {base_name.capitalize()} - 最新摘要\n\n"
+                    content += f"項目: {project_name}\n"
+                    content += f"創建時間: {variables['created_date']}\n\n"
+                    content += "## 最新更新\n\n"
+                elif filename.endswith("_history.md"):
+                    base_name = filename.replace("_history.md", "")
+                    content = f"# {base_name.capitalize()} - 歷史記錄\n\n"
+                    content += f"項目: {project_name}\n"
+                    content += f"創建時間: {variables['created_date']}\n\n"
+                    content += "## 歷史記錄\n\n"
+                else:
+                    content = f"# {filename.replace('.md', '')} - {project_name}\n\n"
+                    content += f"創建時間: {variables['created_date']}\n\n"
             
             output_file.write_text(content, encoding='utf-8')
             logger.debug(f"創建文件: {output_file}")
@@ -241,25 +263,6 @@ class ProjectManager:
 ## 相關鏈接
 - 
 """,
-            "technical.md": """# 技術細節
-
-## 技術棧
-- 
-
-## 架構設計
-- 
-
-## 實現步驟
-1. 
-2. 
-3. 
-
-## 技術挑戰
-- 
-
-## 解決方案
-- 
-""",
             "decisions.md": """# 關鍵決策
 
 ## 決策記錄
@@ -267,19 +270,87 @@ class ProjectManager:
 |------|----------|--------|------|------|
 | {created_date} | 項目創建 | 系統 | 自動創建 | 開始項目 |
 """,
-            "learnings.md": """# 學習總結
+            "learnings_latest.md": """# Learnings - 最新摘要
 
-## 學習要點
+## 項目
+{project_name}
+
+## 創建時間
+{created_date}
+
+## 最新更新
+*[此文件由對話摘要系統自動更新，包含項目最新學習摘要]*
+
+### 核心學習
 - 
 
-## 成功經驗
+### 成功經驗
 - 
 
-## 失敗教訓
+### 改進建議
 - 
 
-## 改進建議
+### 應用場景
 - 
+
+---
+*更新時間: {created_date}*
+""",
+            "learnings_history.md": """# Learnings - 歷史記錄
+
+## 項目
+{project_name}
+
+## 創建時間
+{created_date}
+
+## 歷史記錄
+*[此文件記錄項目所有學習歷史，由對話摘要系統自動追加]*
+
+
+---
+*此文件為歷史記錄，請勿刪除已有內容，只追加新記錄*
+""",
+            "technical_latest.md": """# Technical - 最新摘要
+
+## 項目
+{project_name}
+
+## 創建時間
+{created_date}
+
+## 最新更新
+*[此文件由對話摘要系統自動更新，包含項目最新技術摘要]*
+
+### 技術架構
+- 
+
+### 實現方案
+- 
+
+### 技術挑戰與解決
+- 
+
+### 性能優化
+- 
+
+---
+*更新時間: {created_date}*
+""",
+            "technical_history.md": """# Technical - 歷史記錄
+
+## 項目
+{project_name}
+
+## 創建時間
+{created_date}
+
+## 歷史記錄
+*[此文件記錄項目所有技術歷史，由對話摘要系統自動追加]*
+
+
+---
+*此文件為歷史記錄，請勿刪除已有內容，只追加新記錄*
 """
         }
         

@@ -12,7 +12,10 @@
 1. **500 Tokens自動規則**：監測MEMORY.md，同一主題>500t自動創建項目歸檔
 2. **高效索引系統**：INDEX.md一行一項目，關鍵詞優先，狀態標記
 3. **用戶手動控制**：隨時說「開新項目 [名稱]」立即創建
-4. **智能檢索**：使用 `memory_search("關鍵詞")` 跨項目查找
+4. **對話摘要系統**：檢測「更新版本」、「同步上GitHub」等關鍵詞，自動更新專櫃內容
+5. **版本自動管理**：自動版本號遞增、CHANGELOG更新、GitHub同步
+6. **智能檢索**：使用 `memory_search("關鍵詞")` 跨項目查找
+7. **自動升級**：讀取GitHub鏈接時自動檢測新版本，提示或執行升級
 
 **兼容性**：完全通用設計，無硬編碼路徑，適用任何OpenClaw Agent（workspace-secretary, workspace-pm, workspace-coder等）。
 
@@ -40,6 +43,17 @@
 - **跨項目搜索**：`memory_search("關鍵詞")` 檢索所有項目
 - **類型過濾**：`memory_search("項目名 技術")` 查找技術細節
 - **決策追溯**：`memory_search("項目名 決策")` 查找決策記錄
+
+### 🤖 對話摘要與版本管理 (v4.1.0 新增)
+- **智能觸發檢測**：自動識別「commit」、「上github」、「更新版本」、「version update」等關鍵詞
+- **項目自動識別**：從消息提取項目名，或推斷最近項目
+- **用戶確認機制**：詢問「要不要更新項目專櫃內容」，保留控制權
+- **專櫃內容更新**：使用session_spawn生成摘要，更新_latest/_history文件
+- **自動版本遞增**：根據更新類型選擇major/minor/patch遞增
+- **CHANGELOG自動更新**：遵循Keep a Changelog格式，自動添加版本條目
+- **Git操作集成**：自動執行git add/commit/tag/push，同步到GitHub
+- **文件結構升級**：_latest + _history分離結構，清晰區分最新摘要與完整歷史
+- **自動升級檢測**：讀取GitHub鏈接時自動檢查版本，提示或執行升級
 
 ### 🎮 交互式設置嚮導 (v4.0.0 新增)
 - **方向鍵導航**：使用 ↑↓←→ 鍵選擇，模仿 `openclaw config` 體驗
@@ -122,6 +136,49 @@ read({ path: "projects/INDEX.md" })
 memory_search("AI賺錢 技術")
 ```
 
+### 對話摘要與版本管理 (v4.1.0)
+
+```bash
+# 觸發對話摘要系統（當你說以下任一句話時）
+commit project-memory-manager上GitHub
+更新版本 project-memory-manager
+同步上GitHub project-memory-manager
+version update project-memory-manager
+
+# 系統會自動：
+# 1. 詢問「要唔要同時更新項目專櫃內容？」
+# 2. 如答「要」：使用session_spawn生成摘要，更新專櫃文件
+# 3. 自動遞增版本號（v4.1.0 → v4.1.1）
+# 4. 更新CHANGELOG.md
+# 5. 執行git add/commit/tag/push
+# 6. 同步到GitHub
+
+# 手動運行完整工作流程演示
+python3 scripts/project_update_integration.py --demo
+
+# 檢查當前版本
+python3 scripts/version_manager.py --current
+
+# 自動升級到最新版本
+python3 scripts/upgrade.py --auto
+```
+
+### 自動升級機制
+
+當Agent讀取以下鏈接時，會自動檢測版本並提示升級：
+```
+read({ path: "https://github.com/mismcinffh-svg/project-memory-manager" })
+read({ path: "https://github.com/mismcinffh-svg/project-memory-manager/blob/main/CHANGELOG.md" })
+read({ path: "https://github.com/mismcinffh-svg/project-memory-manager/blob/main/README.md" })
+```
+
+**升級流程**：
+1. **版本檢測**：比較GitHub最新版本與本地版本
+2. **用戶確認**：詢問「發現新版本v4.1.0，要唔要升級？」
+3. **自動升級**：下載升級腳本，備份舊文件，安裝新版本
+4. **項目遷移**：自動遷移現有項目到新文件結構
+5. **完成報告**：顯示升級摘要和新功能說明
+
 ## 項目結構
 
 ```
@@ -137,6 +194,11 @@ project-memory-manager/
 │       ├── menu_engine.py    # 選單引擎
 │       ├── progress_bar.py   # 進度條系統
 │       └── setup_wizard.py   # 設置嚮導核心
+│   ├── conversation_summary.py      # 對話摘要引擎 (v4.1.0)
+│   ├── version_manager.py           # 版本管理模塊 (v4.1.0)
+│   ├── project_update_integration.py # 更新集成協調器 (v4.1.0)
+│   ├── summary_demo.py              # 摘要演示腳本 (v4.1.0)
+│   └── upgrade.py                   # 自動升級腳本 (v4.1.0)
 ├── references/           # 參考文檔
 │   ├── best-practices.md # 最佳實踐
 │   └── troubleshooting.md # 故障排除

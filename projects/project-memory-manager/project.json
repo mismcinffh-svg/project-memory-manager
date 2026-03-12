@@ -1,0 +1,34 @@
+{
+  "name": "Project Memory Manager",
+  "slug": "project-memory-manager",
+  "description": "項目記憶管理系統重構與問題解決 v4.5.0",
+  "status": "active",
+  "created": "2026-03-07T22:30:12+08:00",
+  "updated": "2026-03-12T13:29:28+08:00",
+  "keywords": [
+    "project",
+    "memory",
+    "manager",
+    "管理",
+    "系統",
+    "重構",
+    "v4.5.0",
+    "技能",
+    "歸檔"
+  ],
+  "token_count": 0,
+  "files": [
+    "learnings_history.md",
+    "learnings_latest.md",
+    "decisions.md",
+    "README.md",
+    "technical_history.md",
+    "technical_latest.md",
+    "summary.md"
+  ],
+  "last_summary_update": "2026-03-12T13:29:28+08:00",
+  "github_url": "https://github.com/mismcinffh-svg/project-memory-manager",
+  "migrated_to_v4.1.0": true,
+  "migration_time": "2026-03-11T18:03:45.424309",
+  "version": "4.5.0"
+}

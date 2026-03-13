@@ -1,0 +1,779 @@
+#!/usr/bin/env python3
+"""
+版本管理模塊 - 自動版本號遞增、CHANGELOG更新、Git操作集成
+"""
+
+import os
+import re
+import json
+import subprocess
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
+
+class VersionManager:
+    """版本管理器"""
+    
+    def __init__(self, project_dir: str = "."):
+        self.project_dir = Path(project_dir)
+        self.project_config_path = self.project_dir / "project.json"
+        self.changelog_path = self.project_dir / "CHANGELOG.md"
+        self.readme_path = self.project_dir / "README.md"
+        
+    def get_current_version(self) -> Optional[str]:
+        """獲取當前版本號"""
+        # 首先嘗試從project.json讀取
+        if self.project_config_path.exists():
+            try:
+                with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    if 'version' in config:
+                        return config['version']
+            except Exception as e:
+                logger.warning(f"讀取project.json版本失敗: {e}")
+        
+        # 嘗試從README.md解析
+        if self.readme_path.exists():
+            try:
+                content = self.readme_path.read_text(encoding='utf-8')
+                # 查找版本號模式 v1.0.0 或 1.0.0
+                version_pattern = r'v?(\d+\.\d+\.\d+)'
+                matches = re.findall(version_pattern, content)
+                if matches:
+                    return matches[0]
+            except Exception as e:
+                logger.warning(f"從README解析版本失敗: {e}")
+        
+        return None
+    
+    def increment_version(self, current_version: str, increment_type: str = "patch") -> str:
+        """遞增版本號
+        
+        Args:
+            current_version: 當前版本號 (格式: x.y.z)
+            increment_type: 遞增類型 ('major', 'minor', 'patch')
+        
+        Returns:
+            新版本號
+        """
+        # 清理版本號前綴
+        version = current_version.strip()
+        if version.startswith('v'):
+            version = version[1:]
+        
+        parts = version.split('.')
+        if len(parts) != 3:
+            raise ValueError(f"無效版本號格式: {current_version}")
+        
+        major, minor, patch = map(int, parts)
+        
+        if increment_type == "major":
+            major += 1
+            minor = 0
+            patch = 0
+        elif increment_type == "minor":
+            minor += 1
+            patch = 0
+        elif increment_type == "patch":
+            patch += 1
+        else:
+            raise ValueError(f"無效遞增類型: {increment_type}")
+        
+        return f"{major}.{minor}.{patch}"
+    
+    def update_changelog(self, new_version: str, changes: List[str], 
+                        version_type: str = "patch", project_name: str = None) -> bool:
+        """更新CHANGELOG.md
+        
+        Args:
+            new_version: 新版本號
+            changes: 變更描述列表
+            version_type: 版本類型 ('major', 'minor', 'patch')
+            project_name: 項目名稱
+            
+        Returns:
+            是否成功
+        """
+        if not project_name:
+            # 嘗試從project.json獲取項目名
+            if self.project_config_path.exists():
+                try:
+                    with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                        project_name = config.get('name', '項目')
+                except:
+                    project_name = '項目'
+        
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        
+        # 版本類型標籤
+        type_labels = {
+            "major": "🚀 重大更新",
+            "minor": "✨ 功能更新", 
+            "patch": "🔧 修復更新"
+        }
+        type_label = type_labels.get(version_type, "📦 更新")
+        
+        # 構建新版本條目
+        new_entry = f"""## [{new_version}] - {date_str}
+
+### {type_label}
+
+"""
+        
+        # 添加變更條目
+        for change in changes:
+            new_entry += f"- {change}\n"
+        
+        new_entry += "\n"
+        
+        # 如果CHANGELOG不存在，創建新文件
+        if not self.changelog_path.exists():
+            content = f"""# {project_name} 更新日誌
+
+所有值得注意的變更都會記錄在此文件中。
+
+格式基於 [Keep a Changelog](https://keepachangelog.com/zh-Hant/1.0.0/)，
+並且本項目遵循 [語義化版本](https://semver.org/lang/zh-TW/)。
+
+## [未發布]
+
+### 新增
+- 項目初始創建
+
+{new_entry}"""
+            self.changelog_path.write_text(content, encoding='utf-8')
+            logger.info(f"創建CHANGELOG.md: {self.changelog_path}")
+            return True
+        
+        # 讀取現有CHANGELOG
+        try:
+            content = self.changelog_path.read_text(encoding='utf-8')
+            
+            # 查找「## [未發布]」部分
+            unreleased_pattern = r'##\s*\[未發布\]'
+            match = re.search(unreleased_pattern, content, re.IGNORECASE)
+            
+            if match:
+                # 替換「## [未發布]」為新版本條目
+                start_pos = match.start()
+                # 找到下一個版本標題或文件結尾
+                next_version_pattern = r'##\s*\[\d+\.\d+\.\d+\]'
+                next_match = re.search(next_version_pattern, content[start_pos+1:])
+                
+                if next_match:
+                    end_pos = start_pos + next_match.start()
+                    before = content[:start_pos]
+                    after = content[end_pos:]
+                    new_content = before + new_entry + after
+                else:
+                    # 沒有其他版本，直接替換剩餘部分
+                    before = content[:start_pos]
+                    new_content = before + new_entry
+            else:
+                # 沒有「未發布」部分，插入到開頭
+                lines = content.splitlines()
+                if lines and lines[0].startswith('# '):
+                    # 在標題後插入
+                    new_content = '\n'.join(lines[:2]) + '\n\n' + new_entry + '\n\n' + '\n'.join(lines[2:])
+                else:
+                    # 直接插入到開頭
+                    new_content = new_entry + '\n\n' + content
+            
+            self.changelog_path.write_text(new_content, encoding='utf-8')
+            logger.info(f"更新CHANGELOG.md: 版本 {new_version}")
+            
+            # 驗證新版本條目是否已寫入
+            try:
+                updated_content = self.changelog_path.read_text(encoding='utf-8')
+                version_pattern = re.escape(f"[{new_version}]")
+                if not re.search(f'##\\s*{version_pattern}', updated_content):
+                    logger.error(f"❌ 驗證失敗: CHANGELOG.md 中未找到版本 {new_version}")
+                    return False
+                logger.info(f"✅ CHANGELOG.md 驗證成功: 版本 {new_version}")
+            except Exception as e:
+                logger.warning(f"⚠️  CHANGELOG.md 驗證時出錯: {e}")
+                # 不返回False，因為文件可能已更新，只是驗證失敗
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新CHANGELOG失敗: {e}")
+            return False
+    
+    def update_project_version(self, new_version: str, update_files: bool = True) -> bool:
+        """更新項目中的版本號
+        
+        Args:
+            new_version: 新版本號
+            update_files: 是否更新相關文件
+            
+        Returns:
+            是否成功
+        """
+        try:
+            # 1. 更新project.json
+            if self.project_config_path.exists():
+                with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                config['version'] = new_version
+                config['updated'] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
+                
+                with open(self.project_config_path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, ensure_ascii=False, indent=2)
+                
+                logger.info(f"更新project.json版本: {new_version}")
+            
+            # 2. 更新README.md（如果存在且包含版本號）
+            if update_files and self.readme_path.exists():
+                content = self.readme_path.read_text(encoding='utf-8')
+                
+                # 替換版本號模式
+                version_patterns = [
+                    r'v?\d+\.\d+\.\d+',  # x.y.z
+                    r'版本\s*[:：]?\s*v?\d+\.\d+\.\d+',  # 版本: x.y.z
+                    r'Version\s*[:：]?\s*v?\d+\.\d+\.\d+'  # Version: x.y.z
+                ]
+                
+                updated = False
+                for pattern in version_patterns:
+                    if re.search(pattern, content):
+                        # 簡單替換：將舊版本號替換為新版本號
+                        # 注意：這可能不準確，但適用於大多數情況
+                        old_version = self.get_current_version()
+                        if old_version:
+                            # 替換 v1.0.0 → v{new_version}
+                            content = content.replace(f"v{old_version}", f"v{new_version}")
+                            content = content.replace(old_version, new_version)
+                            updated = True
+                            break
+                
+                if updated:
+                    self.readme_path.write_text(content, encoding='utf-8')
+                    logger.info(f"更新README.md版本: {new_version}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新項目版本失敗: {e}")
+            return False
+    
+    def get_git_remote_url(self) -> Optional[str]:
+        """獲取Git remote URL
+        
+        Returns:
+            remote URL 或 None（如果未設置）
+        """
+        try:
+            result = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                cwd=self.project_dir,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                url = result.stdout.strip()
+                logger.info(f"檢測到Git remote URL: {url}")
+                return url
+            else:
+                logger.debug(f"未設置Git remote URL: {result.stderr}")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"獲取Git remote URL失敗: {e}")
+            return None
+    
+    def get_current_branch(self) -> str:
+        """獲取當前Git分支
+        
+        Returns:
+            分支名稱（默認'main'）
+        """
+        try:
+            result = subprocess.run(
+                ["git", "branch", "--show-current"],
+                cwd=self.project_dir,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                branch = result.stdout.strip()
+                if branch:
+                    logger.info(f"檢測到當前分支: {branch}")
+                    return branch
+            
+            # 如果無法獲取，嘗試從git config讀取默認分支
+            result = subprocess.run(
+                ["git", "config", "--get", "init.defaultBranch"],
+                cwd=self.project_dir,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                default_branch = result.stdout.strip()
+                if default_branch:
+                    logger.info(f"使用默認分支: {default_branch}")
+                    return default_branch
+            
+            # 最後回退到'main'
+            logger.info("使用默認分支: main")
+            return "main"
+                
+        except Exception as e:
+            logger.warning(f"獲取Git分支失敗: {e}")
+            return "main"
+    
+    def check_gh_cli_installed(self) -> bool:
+        """檢查GitHub CLI是否已安裝並登錄
+        
+        Returns:
+            是否可用
+        """
+        try:
+            # 檢查gh命令是否存在
+            result = subprocess.run(
+                ["gh", "--version"],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0:
+                logger.warning("GitHub CLI (gh) 未安裝")
+                return False
+            
+            # 檢查是否已登錄
+            result = subprocess.run(
+                ["gh", "auth", "status"],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0:
+                logger.warning("GitHub CLI 未登錄，請先運行: gh auth login")
+                return False
+            
+            logger.info("✅ GitHub CLI 已安裝並登錄")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"檢查GitHub CLI失敗: {e}")
+            return False
+    
+    def create_github_repo(self, repo_name: str, private: bool = True, 
+                          description: str = None) -> Optional[str]:
+        """創建GitHub倉庫
+        
+        Args:
+            repo_name: 倉庫名稱
+            private: 是否私有倉庫
+            description: 倉庫描述
+            
+        Returns:
+            倉庫URL或None（失敗時）
+        """
+        try:
+            # 構建命令
+            cmd = ["gh", "repo", "create", repo_name]
+            
+            if private:
+                cmd.append("--private")
+            else:
+                cmd.append("--public")
+            
+            if description:
+                cmd.extend(["--description", description])
+            
+            # 添加--source參數，將當前目錄設置為源
+            cmd.extend(["--source", "."])
+            
+            # 設置為推送遠程
+            cmd.append("--remote=origin")
+            
+            # 強制推送（如果存在）
+            cmd.append("--push")
+            
+            logger.info(f"創建GitHub倉庫: {repo_name}")
+            logger.info(f"命令: {' '.join(cmd)}")
+            
+            result = subprocess.run(
+                cmd,
+                cwd=self.project_dir,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                # 解析輸出獲取URL
+                output = result.stdout.strip()
+                
+                # 通常輸出格式：✓ Created repository mismcinffh-svg/repo-name on GitHub
+                # 或者包含URL
+                url_match = re.search(r'https://github\.com/[^/\s]+/[^/\s]+', output)
+                if url_match:
+                    repo_url = url_match.group(0) + ".git"
+                    logger.info(f"✅ GitHub倉庫創建成功: {repo_url}")
+                    return repo_url
+                else:
+                    # 默認構建URL
+                    # 需要從gh config獲取用戶名
+                    user_result = subprocess.run(
+                        ["gh", "api", "user", "--jq", ".login"],
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    if user_result.returncode == 0:
+                        username = user_result.stdout.strip()
+                        repo_url = f"https://github.com/{username}/{repo_name}.git"
+                        logger.info(f"✅ GitHub倉庫創建成功: {repo_url}")
+                        return repo_url
+                    else:
+                        logger.warning("無法獲取GitHub用戶名，使用默認URL格式")
+                        return f"https://github.com/USER/{repo_name}.git"
+            else:
+                logger.error(f"創建GitHub倉庫失敗: {result.stderr}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"創建GitHub倉庫時出錯: {e}")
+            return None
+    
+    def setup_git_remote_if_needed(self, auto_confirm: bool = False) -> bool:
+        """設置Git remote（如果需要）
+        
+        檢查是否已設置remote，如果沒有則：
+        1. 檢查GitHub CLI是否可用
+        2. 詢問用戶是否自動創建倉庫（除非auto_confirm=True）
+        3. 創建倉庫並設置remote
+        4. 更新project.json中的github_url
+        
+        Args:
+            auto_confirm: 是否自動確認創建
+            
+        Returns:
+            是否成功（或已設置）
+        """
+        # 檢查是否已有remote
+        remote_url = self.get_git_remote_url()
+        if remote_url:
+            logger.info(f"✅ Git remote 已設置: {remote_url}")
+            
+            # 確保project.json中有記錄
+            if self.project_config_path.exists():
+                try:
+                    with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                    
+                    if 'github_url' not in config or not config['github_url']:
+                        self.update_github_url_in_config(remote_url)
+                except Exception as e:
+                    logger.warning(f"檢查project.json失敗: {e}")
+            
+            return True
+        
+        logger.info("ℹ️  未檢測到Git remote URL")
+        
+        # 檢查GitHub CLI
+        if not self.check_gh_cli_installed():
+            logger.warning("無法自動創建GitHub倉庫：請先安裝並登錄GitHub CLI (gh)")
+            logger.warning("安裝指引: https://cli.github.com/")
+            logger.warning("或手動設置remote: git remote add origin <URL>")
+            return False
+        
+        # 獲取項目名稱用於倉庫命名
+        repo_name = self.project_dir.name
+        
+        # 從project.json獲取slug（如果有）
+        if self.project_config_path.exists():
+            try:
+                with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                if 'slug' in config and config['slug']:
+                    repo_name = config['slug']
+            except Exception as e:
+                logger.warning(f"讀取project.json失敗: {e}")
+        
+        # 詢問用戶確認（除非auto_confirm）
+        if not auto_confirm:
+            # 在非交互式環境中，我們無法詢問，所以默認不創建
+            # 實際上，我們依賴上層傳遞auto_confirm參數
+            logger.info(f"如需自動創建GitHub倉庫，請使用 --yes 參數")
+            logger.info(f"或手動運行: gh repo create {repo_name} --private --source=. --remote=origin --push")
+            return False
+        
+        logger.info(f"自動創建GitHub倉庫: {repo_name}")
+        
+        # 從project.json獲取描述（如果有）
+        description = None
+        if self.project_config_path.exists():
+            try:
+                with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                if 'description' in config and config['description']:
+                    description = config['description']
+            except Exception as e:
+                logger.warning(f"讀取project.json描述失敗: {e}")
+        
+        # 創建倉庫
+        repo_url = self.create_github_repo(
+            repo_name=repo_name,
+            private=True,
+            description=description
+        )
+        
+        if repo_url:
+            # 更新project.json
+            self.update_github_url_in_config(repo_url)
+            logger.info(f"✅ 已設置Git remote並記錄URL: {repo_url}")
+            return True
+        else:
+            logger.error("❌ 創建GitHub倉庫失敗")
+            return False
+    
+    def update_github_url_in_config(self, github_url: str) -> bool:
+        """更新project.json中的github_url
+        
+        Args:
+            github_url: GitHub倉庫URL
+            
+        Returns:
+            是否成功
+        """
+        try:
+            if not self.project_config_path.exists():
+                logger.warning("project.json不存在，無法更新github_url")
+                return False
+            
+            with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # 更新或添加github_url字段
+            config['github_url'] = github_url
+            config['updated'] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
+            
+            with open(self.project_config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"✅ 更新project.json github_url: {github_url}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新github_url失敗: {e}")
+            return False
+    
+    def run_git_commands(self, commit_message: str = None, tag_version: bool = True, 
+                        auto_confirm: bool = False) -> bool:
+        """執行Git操作
+        
+        Args:
+            commit_message: 提交訊息（如為None則自動生成）
+            tag_version: 是否創建git標籤
+            auto_confirm: 是否自動確認創建GitHub倉庫
+            
+        Returns:
+            是否成功
+        """
+        try:
+            # 獲取當前版本
+            current_version = self.get_current_version()
+            if not current_version:
+                current_version = "0.0.0"
+            
+            # 自動生成提交訊息
+            if not commit_message:
+                commit_message = f"chore: update to v{current_version}"
+            
+            # 檢查Git remote，如果沒有則嘗試設置
+            remote_url = self.get_git_remote_url()
+            remote_set = bool(remote_url)
+            
+            if not remote_set:
+                logger.info("ℹ️  未檢測到Git remote，嘗試設置...")
+                if self.setup_git_remote_if_needed(auto_confirm):
+                    # 成功設置remote
+                    remote_url = self.get_git_remote_url()
+                    remote_set = True
+                    logger.info(f"✅ Git remote 已設置: {remote_url}")
+                else:
+                    logger.warning("⚠️  Git remote 未設置，將只執行本地提交")
+            
+            # 獲取當前分支
+            branch = self.get_current_branch()
+            
+            commands = [
+                ["git", "add", "-f", "."],
+                ["git", "commit", "-m", commit_message]
+            ]
+            
+            if tag_version:
+                tag_name = f"v{current_version}"
+                commands.append(["git", "tag", "-a", tag_name, "-m", f"Version {tag_name}"])
+            
+            # 執行Git操作
+            for cmd in commands:
+                logger.info(f"執行: {' '.join(cmd)}")
+                result = subprocess.run(cmd, cwd=self.project_dir, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    logger.error(f"命令失敗: {' '.join(cmd)}")
+                    logger.error(f"錯誤: {result.stderr}")
+                    return False
+            
+            # 如果remote已設置，嘗試推送
+            push_success = False
+            if remote_set:
+                # 推送分支
+                push_branch_cmd = ["git", "push", "origin", branch]
+                logger.info(f"執行: {' '.join(push_branch_cmd)}")
+                push_result = subprocess.run(push_branch_cmd, cwd=self.project_dir, capture_output=True, text=True)
+                
+                if push_result.returncode == 0:
+                    logger.info(f"✅ 分支推送成功: {branch}")
+                    push_success = True
+                    
+                    # 更新project.json中的github_url
+                    if remote_url:
+                        self.update_github_url_in_config(remote_url)
+                else:
+                    logger.error(f"分支推送失敗: {push_result.stderr}")
+                    push_success = False
+                
+                # 推送標籤（如果創建了標籤）
+                if tag_version:
+                    push_tag_cmd = ["git", "push", "origin", f"v{current_version}"]
+                    logger.info(f"執行: {' '.join(push_tag_cmd)}")
+                    push_tag_result = subprocess.run(push_tag_cmd, cwd=self.project_dir, capture_output=True, text=True)
+                    
+                    if push_tag_result.returncode == 0:
+                        logger.info(f"✅ 標籤推送成功: v{current_version}")
+                    else:
+                        logger.warning(f"標籤推送失敗: {push_tag_result.stderr}")
+            else:
+                logger.warning("⚠️  跳過推送操作（未設置Git remote）")
+                logger.warning("   如需設置GitHub倉庫，請運行:")
+                logger.warning(f"   cd {self.project_dir}")
+                logger.warning("   gh repo create <repo-name> --private --source=. --remote=origin --push")
+                logger.warning("   或手動設置remote: git remote add origin <URL>")
+            
+            # 即使push失敗，我們仍然認為Git操作部分成功（本地提交已創建）
+            logger.info("✅ Git操作完成（本地提交已創建）")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Git操作失敗: {e}")
+            return False
+    
+    def full_version_update(self, increment_type: str = "patch", 
+                           changes: List[str] = None,
+                           run_git: bool = True,
+                           auto_confirm: bool = False) -> Tuple[bool, str]:
+        """完整版本更新流程
+        
+        Args:
+            increment_type: 遞增類型 ('major', 'minor', 'patch')
+            changes: 變更描述列表（如為None則使用默認）
+            run_git: 是否執行Git操作
+            auto_confirm: 是否自動確認創建GitHub倉庫
+            
+        Returns:
+            (是否成功, 新版本號)
+        """
+        try:
+            # 1. 獲取當前版本
+            current_version = self.get_current_version()
+            if not current_version:
+                current_version = "0.0.0"
+                logger.warning(f"未找到版本號，使用默認: {current_version}")
+            
+            # 2. 遞增版本號
+            new_version = self.increment_version(current_version, increment_type)
+            logger.info(f"版本更新: {current_version} → {new_version}")
+            
+            # 3. 準備變更描述
+            if not changes:
+                change_type = {"major": "重大", "minor": "功能", "patch": "修復"}.get(increment_type, "更新")
+                changes = [f"{change_type}更新"]
+            
+            # 4. 更新CHANGELOG
+            if not self.update_changelog(new_version, changes, increment_type):
+                logger.error("更新CHANGELOG失敗")
+                return False, new_version
+            
+            # 5. 更新項目版本號
+            if not self.update_project_version(new_version):
+                logger.error("更新項目版本失敗")
+                return False, new_version
+            
+            # 6. 執行Git操作
+            if run_git:
+                if not self.run_git_commands(auto_confirm=auto_confirm):
+                    logger.error("Git操作失敗")
+                    return False, new_version
+            
+            logger.info(f"✅ 版本更新完成: v{new_version}")
+            return True, new_version
+            
+        except Exception as e:
+            logger.error(f"版本更新流程失敗: {e}")
+            return False, ""
+
+def main():
+    """命令行入口點"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='版本管理工具')
+    parser.add_argument('--project-dir', default='.', help='項目目錄')
+    parser.add_argument('--increment', choices=['major', 'minor', 'patch'], 
+                       default='patch', help='遞增類型')
+    parser.add_argument('--change', action='append', help='變更描述（可多次使用）')
+    parser.add_argument('--no-git', action='store_true', help='不執行Git操作')
+    parser.add_argument('--current', action='store_true', help='顯示當前版本')
+    parser.add_argument('--next', action='store_true', help='計算下個版本')
+    
+    args = parser.parse_args()
+    
+    # 設置日誌
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    
+    manager = VersionManager(args.project_dir)
+    
+    if args.current:
+        version = manager.get_current_version()
+        if version:
+            print(f"當前版本: v{version}")
+        else:
+            print("未找到版本號")
+    
+    elif args.next:
+        current = manager.get_current_version() or "0.0.0"
+        next_version = manager.increment_version(current, args.increment)
+        print(f"當前: v{current}")
+        print(f"下個({args.increment}): v{next_version}")
+    
+    else:
+        # 執行完整更新
+        success, new_version = manager.full_version_update(
+            increment_type=args.increment,
+            changes=args.change,
+            run_git=not args.no_git
+        )
+        
+        if success:
+            print(f"✅ 版本更新成功: v{new_version}")
+        else:
+            print("❌ 版本更新失敗")
+            sys.exit(1)
+
+if __name__ == "__main__":
+    import sys
+    main()

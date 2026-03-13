@@ -1,0 +1,33 @@
+# 忽略二進制分發文件
+*.skill
+*.zip
+*.tar.gz
+*.tgz
+
+# 忽略編輯器文件
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 忽略本地配置
+config.local.json
+.env
+secrets/
+credentials/
+
+# 忽略Python緩存和字節碼
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 忽略本地項目和日誌
+projects/
+_logs/
+*.log
+
+# 忽略系統文件
+Thumbs.db
+*.tmp
+*.temp

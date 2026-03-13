@@ -1,0 +1,401 @@
+#!/usr/bin/env python3
+"""
+版本管理模塊 - 自動版本號遞增、CHANGELOG更新、Git操作集成
+"""
+
+import os
+import re
+import json
+import subprocess
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
+
+class VersionManager:
+    """版本管理器"""
+    
+    def __init__(self, project_dir: str = "."):
+        self.project_dir = Path(project_dir)
+        self.project_config_path = self.project_dir / "project.json"
+        self.changelog_path = self.project_dir / "CHANGELOG.md"
+        self.readme_path = self.project_dir / "README.md"
+        
+    def get_current_version(self) -> Optional[str]:
+        """獲取當前版本號"""
+        # 首先嘗試從project.json讀取
+        if self.project_config_path.exists():
+            try:
+                with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    if 'version' in config:
+                        return config['version']
+            except Exception as e:
+                logger.warning(f"讀取project.json版本失敗: {e}")
+        
+        # 嘗試從README.md解析
+        if self.readme_path.exists():
+            try:
+                content = self.readme_path.read_text(encoding='utf-8')
+                # 查找版本號模式 v1.0.0 或 1.0.0
+                version_pattern = r'v?(\d+\.\d+\.\d+)'
+                matches = re.findall(version_pattern, content)
+                if matches:
+                    return matches[0]
+            except Exception as e:
+                logger.warning(f"從README解析版本失敗: {e}")
+        
+        return None
+    
+    def increment_version(self, current_version: str, increment_type: str = "patch") -> str:
+        """遞增版本號
+        
+        Args:
+            current_version: 當前版本號 (格式: x.y.z)
+            increment_type: 遞增類型 ('major', 'minor', 'patch')
+        
+        Returns:
+            新版本號
+        """
+        # 清理版本號前綴
+        version = current_version.strip()
+        if version.startswith('v'):
+            version = version[1:]
+        
+        parts = version.split('.')
+        if len(parts) != 3:
+            raise ValueError(f"無效版本號格式: {current_version}")
+        
+        major, minor, patch = map(int, parts)
+        
+        if increment_type == "major":
+            major += 1
+            minor = 0
+            patch = 0
+        elif increment_type == "minor":
+            minor += 1
+            patch = 0
+        elif increment_type == "patch":
+            patch += 1
+        else:
+            raise ValueError(f"無效遞增類型: {increment_type}")
+        
+        return f"{major}.{minor}.{patch}"
+    
+    def update_changelog(self, new_version: str, changes: List[str], 
+                        version_type: str = "patch", project_name: str = None) -> bool:
+        """更新CHANGELOG.md
+        
+        Args:
+            new_version: 新版本號
+            changes: 變更描述列表
+            version_type: 版本類型 ('major', 'minor', 'patch')
+            project_name: 項目名稱
+            
+        Returns:
+            是否成功
+        """
+        if not project_name:
+            # 嘗試從project.json獲取項目名
+            if self.project_config_path.exists():
+                try:
+                    with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                        project_name = config.get('name', '項目')
+                except:
+                    project_name = '項目'
+        
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        
+        # 版本類型標籤
+        type_labels = {
+            "major": "🚀 重大更新",
+            "minor": "✨ 功能更新", 
+            "patch": "🔧 修復更新"
+        }
+        type_label = type_labels.get(version_type, "📦 更新")
+        
+        # 構建新版本條目
+        new_entry = f"""## [{new_version}] - {date_str}
+
+### {type_label}
+
+"""
+        
+        # 添加變更條目
+        for change in changes:
+            new_entry += f"- {change}\n"
+        
+        new_entry += "\n"
+        
+        # 如果CHANGELOG不存在，創建新文件
+        if not self.changelog_path.exists():
+            content = f"""# {project_name} 更新日誌
+
+所有值得注意的變更都會記錄在此文件中。
+
+格式基於 [Keep a Changelog](https://keepachangelog.com/zh-Hant/1.0.0/)，
+並且本項目遵循 [語義化版本](https://semver.org/lang/zh-TW/)。
+
+## [未發布]
+
+### 新增
+- 項目初始創建
+
+{new_entry}"""
+            self.changelog_path.write_text(content, encoding='utf-8')
+            logger.info(f"創建CHANGELOG.md: {self.changelog_path}")
+            return True
+        
+        # 讀取現有CHANGELOG
+        try:
+            content = self.changelog_path.read_text(encoding='utf-8')
+            
+            # 查找「## [未發布]」部分
+            unreleased_pattern = r'##\s*\[未發布\]'
+            match = re.search(unreleased_pattern, content, re.IGNORECASE)
+            
+            if match:
+                # 替換「## [未發布]」為新版本條目
+                start_pos = match.start()
+                # 找到下一個版本標題或文件結尾
+                next_version_pattern = r'##\s*\[\d+\.\d+\.\d+\]'
+                next_match = re.search(next_version_pattern, content[start_pos+1:])
+                
+                if next_match:
+                    end_pos = start_pos + next_match.start()
+                    before = content[:start_pos]
+                    after = content[end_pos:]
+                    new_content = before + new_entry + after
+                else:
+                    # 沒有其他版本，直接替換剩餘部分
+                    before = content[:start_pos]
+                    new_content = before + new_entry
+            else:
+                # 沒有「未發布」部分，插入到開頭
+                lines = content.splitlines()
+                if lines and lines[0].startswith('# '):
+                    # 在標題後插入
+                    new_content = '\n'.join(lines[:2]) + '\n\n' + new_entry + '\n\n' + '\n'.join(lines[2:])
+                else:
+                    # 直接插入到開頭
+                    new_content = new_entry + '\n\n' + content
+            
+            self.changelog_path.write_text(new_content, encoding='utf-8')
+            logger.info(f"更新CHANGELOG.md: 版本 {new_version}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新CHANGELOG失敗: {e}")
+            return False
+    
+    def update_project_version(self, new_version: str, update_files: bool = True) -> bool:
+        """更新項目中的版本號
+        
+        Args:
+            new_version: 新版本號
+            update_files: 是否更新相關文件
+            
+        Returns:
+            是否成功
+        """
+        try:
+            # 1. 更新project.json
+            if self.project_config_path.exists():
+                with open(self.project_config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                config['version'] = new_version
+                config['updated'] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
+                
+                with open(self.project_config_path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, ensure_ascii=False, indent=2)
+                
+                logger.info(f"更新project.json版本: {new_version}")
+            
+            # 2. 更新README.md（如果存在且包含版本號）
+            if update_files and self.readme_path.exists():
+                content = self.readme_path.read_text(encoding='utf-8')
+                
+                # 替換版本號模式
+                version_patterns = [
+                    r'v?\d+\.\d+\.\d+',  # x.y.z
+                    r'版本\s*[:：]?\s*v?\d+\.\d+\.\d+',  # 版本: x.y.z
+                    r'Version\s*[:：]?\s*v?\d+\.\d+\.\d+'  # Version: x.y.z
+                ]
+                
+                updated = False
+                for pattern in version_patterns:
+                    if re.search(pattern, content):
+                        # 簡單替換：將舊版本號替換為新版本號
+                        # 注意：這可能不準確，但適用於大多數情況
+                        old_version = self.get_current_version()
+                        if old_version:
+                            # 替換 v1.0.0 → v{new_version}
+                            content = content.replace(f"v{old_version}", f"v{new_version}")
+                            content = content.replace(old_version, new_version)
+                            updated = True
+                            break
+                
+                if updated:
+                    self.readme_path.write_text(content, encoding='utf-8')
+                    logger.info(f"更新README.md版本: {new_version}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"更新項目版本失敗: {e}")
+            return False
+    
+    def run_git_commands(self, commit_message: str = None, tag_version: bool = True) -> bool:
+        """執行Git操作
+        
+        Args:
+            commit_message: 提交訊息（如為None則自動生成）
+            tag_version: 是否創建git標籤
+            
+        Returns:
+            是否成功
+        """
+        try:
+            # 獲取當前版本
+            current_version = self.get_current_version()
+            if not current_version:
+                current_version = "0.0.0"
+            
+            # 自動生成提交訊息
+            if not commit_message:
+                commit_message = f"chore: update to v{current_version}"
+            
+            commands = [
+                ["git", "add", "."],
+                ["git", "commit", "-m", commit_message],
+                ["git", "push", "origin", "main"]
+            ]
+            
+            if tag_version:
+                tag_name = f"v{current_version}"
+                commands.insert(2, ["git", "tag", "-a", tag_name, "-m", f"Version {tag_name}"])
+                commands.insert(3, ["git", "push", "origin", tag_name])
+            
+            for cmd in commands:
+                logger.info(f"執行: {' '.join(cmd)}")
+                result = subprocess.run(cmd, cwd=self.project_dir, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    logger.error(f"命令失敗: {' '.join(cmd)}")
+                    logger.error(f"錯誤: {result.stderr}")
+                    return False
+            
+            logger.info("✅ Git操作完成")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Git操作失敗: {e}")
+            return False
+    
+    def full_version_update(self, increment_type: str = "patch", 
+                           changes: List[str] = None,
+                           run_git: bool = True) -> Tuple[bool, str]:
+        """完整版本更新流程
+        
+        Args:
+            increment_type: 遞增類型 ('major', 'minor', 'patch')
+            changes: 變更描述列表（如為None則使用默認）
+            run_git: 是否執行Git操作
+            
+        Returns:
+            (是否成功, 新版本號)
+        """
+        try:
+            # 1. 獲取當前版本
+            current_version = self.get_current_version()
+            if not current_version:
+                current_version = "0.0.0"
+                logger.warning(f"未找到版本號，使用默認: {current_version}")
+            
+            # 2. 遞增版本號
+            new_version = self.increment_version(current_version, increment_type)
+            logger.info(f"版本更新: {current_version} → {new_version}")
+            
+            # 3. 準備變更描述
+            if not changes:
+                change_type = {"major": "重大", "minor": "功能", "patch": "修復"}.get(increment_type, "更新")
+                changes = [f"{change_type}更新"]
+            
+            # 4. 更新CHANGELOG
+            if not self.update_changelog(new_version, changes, increment_type):
+                logger.error("更新CHANGELOG失敗")
+                return False, new_version
+            
+            # 5. 更新項目版本號
+            if not self.update_project_version(new_version):
+                logger.error("更新項目版本失敗")
+                return False, new_version
+            
+            # 6. 執行Git操作
+            if run_git:
+                if not self.run_git_commands():
+                    logger.error("Git操作失敗")
+                    return False, new_version
+            
+            logger.info(f"✅ 版本更新完成: v{new_version}")
+            return True, new_version
+            
+        except Exception as e:
+            logger.error(f"版本更新流程失敗: {e}")
+            return False, ""
+
+def main():
+    """命令行入口點"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='版本管理工具')
+    parser.add_argument('--project-dir', default='.', help='項目目錄')
+    parser.add_argument('--increment', choices=['major', 'minor', 'patch'], 
+                       default='patch', help='遞增類型')
+    parser.add_argument('--change', action='append', help='變更描述（可多次使用）')
+    parser.add_argument('--no-git', action='store_true', help='不執行Git操作')
+    parser.add_argument('--current', action='store_true', help='顯示當前版本')
+    parser.add_argument('--next', action='store_true', help='計算下個版本')
+    
+    args = parser.parse_args()
+    
+    # 設置日誌
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    
+    manager = VersionManager(args.project_dir)
+    
+    if args.current:
+        version = manager.get_current_version()
+        if version:
+            print(f"當前版本: v{version}")
+        else:
+            print("未找到版本號")
+    
+    elif args.next:
+        current = manager.get_current_version() or "0.0.0"
+        next_version = manager.increment_version(current, args.increment)
+        print(f"當前: v{current}")
+        print(f"下個({args.increment}): v{next_version}")
+    
+    else:
+        # 執行完整更新
+        success, new_version = manager.full_version_update(
+            increment_type=args.increment,
+            changes=args.change,
+            run_git=not args.no_git
+        )
+        
+        if success:
+            print(f"✅ 版本更新成功: v{new_version}")
+        else:
+            print("❌ 版本更新失敗")
+            sys.exit(1)
+
+if __name__ == "__main__":
+    import sys
+    main()

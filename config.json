@@ -1,0 +1,124 @@
+{
+  "system": {
+    "version": "4.1.1",
+    "name": "project-memory-manager",
+    "description": "通用項目記憶管理系統 - 帶對話摘要與版本管理",
+    "author": "Nana (Sergio's Secretary)",
+    "created": "2026-03-05",
+    "updated": "2026-03-11"
+  },
+  "auto_monitor": {
+    "enabled": true,
+    "threshold_tokens": 500,
+    "check_interval_hours": 24,
+    "last_check": null,
+    "max_topics_per_run": 10,
+    "dry_run_by_default": false
+  },
+  "index": {
+    "max_tokens": 200,
+    "keywords_per_project": 3,
+    "status_options": [
+      "active",
+      "inactive",
+      "completed",
+      "archived"
+    ],
+    "default_status": "active",
+    "sort_by": "created",
+    "sort_order": "desc"
+  },
+  "projects": {
+    "default_status": "active",
+    "max_projects_per_day": 10,
+    "min_name_length": 2,
+    "max_name_length": 50,
+    "blacklisted_keywords": [
+      "測試",
+      "示例",
+      "temp",
+      "test",
+      "臨時",
+      "草稿",
+      "draft"
+    ],
+    "required_files": [
+      "README.md",
+      "project.json",
+      "decisions.md"
+    ],
+    "optional_files": [
+      "learnings_latest.md",
+      "learnings_history.md",
+      "technical_latest.md",
+      "technical_history.md",
+      "migrated_content.md"
+    ]
+  },
+  "tokens": {
+    "estimation_method": "chars_div_3",
+    "chars_per_token": 3,
+    "min_topic_tokens": 50,
+    "max_topic_tokens": 5000
+  },
+  "keywords": {
+    "min_length": 2,
+    "max_length": 20,
+    "max_per_project": 5,
+    "extract_chinese": true,
+    "extract_english": true,
+    "stopwords": [
+      "這個",
+      "那個",
+      "還有",
+      "然後",
+      "所以",
+      "因為"
+    ]
+  },
+  "logging": {
+    "enabled": true,
+    "level": "INFO",
+    "max_log_size_mb": 10,
+    "max_log_files": 10,
+    "log_directory": "projects/_logs"
+  },
+  "backup": {
+    "enabled": true,
+    "interval_days": 7,
+    "max_backups": 10,
+    "backup_directory": "projects/_backups",
+    "include_files": [
+      "INDEX.md",
+      "config.json"
+    ],
+    "exclude_patterns": [
+      "*.log",
+      "*.tmp"
+    ]
+  },
+  "performance": {
+    "cache_enabled": true,
+    "cache_ttl_seconds": 3600,
+    "max_concurrent_operations": 1,
+    "timeout_seconds": 30
+  },
+  "integration": {
+    "openclaw_compatible": true,
+    "requires_python": "3.8+",
+    "skill_format": "standard_zip",
+    "install_methods": [
+      "skill_package",
+      "manual_copy"
+    ],
+    "test_command": "python3 scripts/create.py manual \"測試項目\""
+  },
+  "upgrade_history": [
+    {
+      "from_version": "4.1.0",
+      "to_version": "4.1.0",
+      "time": "2026-03-11T18:03:45.425914",
+      "migrated_projects": true
+    }
+  ]
+}

@@ -1,35 +1,42 @@
 ---
-name: project-memory-manager
-description: Manage project memory and archives. Use when user says '歸檔', '記錄落去', '更新專櫃', 'commit', '上github', '更新版本', '同步到github', '版本更新', '發布', 'release', or when preparing to push to GitHub. Detects keywords and triggers automated project cabinet updates.
-metadata: {"openclaw": {"requires": {"python": true}, "user-invocable": true, "install": [{"id": "python-deps", "kind": "info", "label": "Python 3.8+ required", "note": "本技能使用Python腳本實現自動化功能"}]}}
+name: project-memory-manager-v5
+description: Manage project memory and archives using OpenClaw v5.0 architecture. Use when user says '歸檔', '記錄落去', '更新專櫃', 'commit', '上github', '更新版本', '同步到github', '版本更新', '發布', 'release', or when preparing to push to GitHub. Provides guidance instead of direct execution, following OpenClaw best practices.
+metadata: {"openclaw": {"requires": {"python": true}, "user-invocable": true, "install": [{"id": "python-deps", "kind": "info", "label": "Python 3.8+ required", "note": "本技能使用Python腳本實現自動化功能"}], "version": "5.0.0", "architecture": "guidance-based"}}
 ---
 
-# Project Memory Manager
+# Project Memory Manager v5.0
 
 ## Overview
 
-This skill manages project memory and archives through an automated "project cabinet" system. It solves the problem of OpenClaw Agent's MEMORY.md file growing over time, causing context overload, slow responses, and memory confusion.
+**Project Memory Manager v5.0** is a complete architectural redesign that follows OpenClaw's philosophy of "skills provide guidance, Agents execute." This version solves the security and architectural issues of v4.x while maintaining full backward compatibility.
 
-**Core problem:** MEMORY.md becomes too large (>2000 tokens)
-**Solution:** "Project cabinet" architecture that automatically archives project content when topics exceed 500 tokens.
+### 🎯 v5.0 Key Improvements
+| 問題 | v4.x | v5.0 解決方案 |
+|------|------|---------------|
+| **安全風險** | 直接 `subprocess` | `exec` 工具指引 + 安全驗證 |
+| **數據不真實** | 模擬數據 (mock) | 真實 OpenClaw 工具調用 |
+| **架構違規** | 技能直接執行操作 | 技能提供指引，Agent 執行 |
+| **Token 估算不準** | `len(text) // 3` | 中英文混合精準算法 |
+| **原子性問題** | 無事務支持 | 完整事務 + 自動回滾 |
 
-## Core Principles
+## Core Architecture Principles
 
-### Guide, Don't Hardcode
-- This skill provides **guidance** to the Agent, not hardcoded logic
-- Teach the Agent **how to find paths**, don't write the paths for it
-- Always check `projects/INDEX.md` first to understand project structure
-- The Agent decides when and how to use the tools based on context
+### 🔧 Skills as Toolboxes (Not Automation Machines)
+v5.0 follows the OpenClaw philosophy:
+- **Skills provide tools and guidance** - not direct execution
+- **Agents decide when and how** - based on context and judgment
+- **Clear separation of concerns** - guidance generation vs. execution
 
-### User Control First
-- Always ask "要不要更新項目專櫃內容?" unless `--yes` flag is used
-- Preserve user's final decision authority
-- Provide clear error messages and recovery steps
+### 🛡️ Security-First Design
+- **Zero `subprocess` calls** - all commands use `exec` tool guidance
+- **Path whitelist validation** - prevents directory traversal attacks
+- **Command sanitization** - dangerous command blacklist + Git command whitelist
+- **Atomic operations** - file locks + automatic backup/rollback
 
-### Workspace-Agnostic
-- No hardcoded paths to specific Agents (workspace-secretary, workspace-pm, etc.)
-- Automatically detects the current workspace by traversing up to find `projects/` directory
-- Compatible with all OpenClaw Agent types
+### 🔄 Full Backward Compatibility
+- **Dual architecture support** - choose v4.x compatible mode or v5.0 guidance mode
+- **Automatic migration** - `use_old_components=True` for compatibility
+- **Gradual adoption** - migrate components one by one
 
 ## When to Use This Skill
 

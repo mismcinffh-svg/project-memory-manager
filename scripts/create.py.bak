@@ -138,29 +138,8 @@ class ProjectManager:
         return slug.strip('-')
     
     def estimate_tokens(self, text: str) -> int:
-        """改進的token估算（中文約2字符/token，英文約4字符/token）
-        
-        基於Sergio的建議：中英文混合內容需要更準確的估算
-        參考：https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them
-        """
-        import re
-        if not text:
-            return 0
-        
-        # 統計中文字符（CJK統一表意文字）
-        chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
-        # 其他字符（英文、數字、符號等）
-        other_chars = len(text) - chinese_chars
-        
-        # 估算規則：
-        # - 中文字符：約2字符/token（實際約1.5-2.5，取中間值）
-        # - 其他字符：約4字符/token（英文單詞平均長度）
-        # - 避免除零，最小為1
-        chinese_tokens = max(1, chinese_chars // 2) if chinese_chars > 0 else 0
-        other_tokens = max(1, other_chars // 4) if other_chars > 0 else 0
-        
-        total_tokens = chinese_tokens + other_tokens
-        return max(1, total_tokens)
+        """簡單估算tokens（字符數 ÷ 3）"""
+        return len(text) // 3
     
     def extract_keywords(self, text: str, max_keywords: int = 5) -> List[str]:
         """從文本中提取關鍵詞"""

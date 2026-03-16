@@ -1,27 +1,102 @@
-# Project Memory Manager
+# Project Memory Manager v5.0
 
-**通用項目記憶管理系統：智能監測MEMORY.md，自動創建項目歸檔，高效索引管理**
+**遵循OpenClaw哲學的項目記憶管理系統：技能提供指引，Agent執行操作**
 
+[![Version: 5.0.0](https://img.shields.io/badge/Version-5.0.0-green.svg)](VERSION.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Architecture: Guidance-based](https://img.shields.io/badge/Architecture-Guidance--based-orange.svg)](MIGRATION_GUIDE.md)
 
-## 概述
+## 🎯 v5.0 概述
 
-**問題**：OpenClaw Agent的MEMORY.md文件會隨時間增長，導致上下文過載、響應變慢、記憶混亂。
+**Project Memory Manager v5.0** 是完全基於 OpenClaw 哲學的重構版本：「技能提供指引，Agent 執行操作」。這個版本解決了 v4.x 的安全問題和架構缺陷，同時保持完全向後兼容。
 
-**解決方案**：本技能實施「項目專櫃」架構：
-1. **500 Tokens自動規則**：監測MEMORY.md，同一主題>500t自動創建項目歸檔
-2. **高效索引系統**：INDEX.md一行一項目，關鍵詞優先，狀態標記
-3. **用戶手動控制**：隨時說「開新項目 [名稱]」立即創建
-4. **對話摘要系統**：檢測「更新版本」、「同步上GitHub」等關鍵詞，自動更新專櫃內容
-5. **版本自動管理**：自動版本號遞增、CHANGELOG更新、GitHub同步
-6. **智能檢索**：使用 `memory_search("關鍵詞")` 跨項目查找
-7. **自動升級**：讀取GitHub鏈接時自動檢測新版本，提示或執行升級
+### 🚨 v4.x 問題總結
+- **安全風險**：直接使用 `subprocess` 執行命令
+- **數據不真實**：使用模擬數據而非真實 OpenClaw 工具
+- **架構違規**：技能直接執行操作，違反 OpenClaw 哲學
+- **維護困難**：代碼複雜，難以測試和擴展
 
-**兼容性**：完全通用設計，無硬編碼路徑，適用任何OpenClaw Agent（workspace-secretary, workspace-pm, workspace-coder等）。
+### ✅ v5.0 解決方案
+1. **安全性架構**：移除所有 `subprocess`，改用 `exec` 工具指引
+2. **真實數據源**：使用真實 `sessions_history`/`sessions_spawn` 工具調用
+3. **指引驅動架構**：技能提供指引，Agent 決定何時執行
+4. **原子操作**：文件鎖 + 事務支持 + 自動回滾
+5. **模塊化設計**：核心功能分離，易於測試和維護
 
-## 核心功能
+### 🔄 完全向後兼容
+- **雙架構支持**：`use_old_components=True` 切換到 v4.x 兼容模式
+- **無縫遷移**：現有項目無需修改即可工作
+- **漸進式採用**：可逐個組件遷移到 v5.0 架構
 
-### 🚨 500 Tokens自動監測（已實現）
+## 🏗️ v5.0 核心架構
+
+### 🔒 安全性組件 (Nana 實現)
+- **SecurityValidator**：路徑白名單驗證 + 命令黑名單過濾
+- **GitToolWrapper**：安全 Git 操作指引（使用 `exec` 工具）
+- **Zero `subprocess`**：完全消除直接命令執行
+
+### 🔧 真實工具調用 (Nana 實現)
+- **OpenClawToolsWrapper**：真實 `sessions_history`/`sessions_spawn` 工具指引
+- **消除模擬數據**：所有數據來自實際 OpenClaw 工具調用
+- **指引生成**：技能提供如何調用工具的指引
+
+### 🏗️ 核心管理器 (Coder Agent 設計)
+- **ProjectManager**：完整項目 CRUD + 事務支持
+- **Atomic Operations**：文件鎖 + 自動備份/回滾
+- **Enhanced Logging**：結構化日誌 + 性能監控
+- **Configuration Management**：JSON Schema 驗證 + 遷移工具
+
+### 🔄 兼容性層
+- **ProjectUpdateGuidance**：智能場景檢測 + 工作流程指引
+- **ProjectUpdateIntegrationV5**：新舊架構自動切換
+- **Dual Architecture**：`use_old_components=True/False` 切換
+
+## 🧪 測試狀態
+
+所有 v5.0 組件已通過完整測試：
+
+```
+SecurityValidator              ✅ 通過
+GitToolWrapper                 ✅ 通過  
+OpenClawToolsWrapper           ✅ 通過
+ProjectUpdateGuidance          ✅ 通過
+ProjectUpdateIntegrationV5     ✅ 通過
+Backward Compatibility         ✅ 通過
+====================================
+Total: 6 Passed, 0 Failed 🎉
+```
+
+## 🚀 快速開始
+
+### 查看 v5.0 vs v4.x 架構對比
+```bash
+python3 demo_v5_vs_v4.py
+```
+
+### 運行完整測試套件
+```bash
+python3 test_v5_components.py
+```
+
+### 閱讀遷移指南
+```bash
+cat MIGRATION_GUIDE.md
+```
+
+### 使用 v5.0 新架構
+```python
+from scripts.project_update_integration_v5 import ProjectUpdateIntegrationV5
+
+# 使用 v5.0 新架構（推薦）
+integration = ProjectUpdateIntegrationV5(use_old_components=False)
+guidance = integration.get_full_workflow_guidance("project-name")
+
+# 使用 v4.x 兼容模式
+integration = ProjectUpdateIntegrationV5(use_old_components=True)
+success, version, details = integration.run_compatible_workflow("project-name")
+```
+
+## 核心功能 (向後兼容)
 - **實時監測**：每次更新MEMORY.md時自動檢查
 - **智能識別**：按主題分組內容，計算tokens總量
 - **自動遷移**：>500t的主題自動創建項目+遷移內容

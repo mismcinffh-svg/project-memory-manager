@@ -25,12 +25,6 @@ sys.path.append(str(Path(__file__).parent))
 
 from conversation_summary import ConversationSummary
 from version_manager import VersionManager
-try:
-    from security import SecurityValidator
-    SECURITY_ENABLED = True
-except ImportError:
-    SECURITY_ENABLED = False
-    print("警告：安全模塊未找到，將使用基本路徑驗證")
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +69,6 @@ class ProjectUpdateIntegration:
             self.workspace_dir = Path(workspace_dir)
         
         self.projects_dir = self.workspace_dir / "projects"
-        
-        # 初始化安全驗證器
-        if SECURITY_ENABLED:
-            self.validator = SecurityValidator(self.workspace_dir)
-            logger.info("✅ 安全驗證器已啟用")
-        else:
-            self.validator = None
-            logger.warning("⚠️  安全驗證器未啟用，使用基本路徑檢查")
         
         # 觸發關鍵詞配置
         self.trigger_keywords = [

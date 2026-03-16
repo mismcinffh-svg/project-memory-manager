@@ -1,8 +1,8 @@
-# Project Memory Manager v5.0
+# Project Memory Manager v5.0.1
 
-**遵循OpenClaw哲學的項目記憶管理系統：技能提供指引，Agent執行操作**
+**遵循OpenClaw哲學的項目記憶管理系統：技能提供指引，Agent執行操作（v5.0.1 修復版本）**
 
-[![Version: 5.0.0](https://img.shields.io/badge/Version-5.0.0-green.svg)](VERSION.md)
+[![Version: 5.0.1](https://img.shields.io/badge/Version-5.0.1-green.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Architecture: Guidance-based](https://img.shields.io/badge/Architecture-Guidance--based-orange.svg)](MIGRATION_GUIDE.md)
 

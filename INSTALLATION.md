@@ -336,7 +336,7 @@ python3 -c "import json, re, pathlib, logging; print('基本依賴: ✅')"
 1. **查看文檔**:
    - `SKILL.md` - 主要技能文檔
    - `MIGRATION_GUIDE.md` - 遷移指南
-   - `VERSION.md` - 版本信息
+   - `CHANGELOG.md` - 版本信息（包含完整歷史）
 
 2. **運行演示**:
    ```bash
@@ -470,7 +470,7 @@ class EnhancedSecurityValidator(SecurityValidator):
 - **架構**: Guidance-based (指引驅動)
 - **兼容性**: 完全向後兼容 v4.x
 
-詳見 `VERSION.md` 和 `CHANGELOG.md`。
+詳見 `CHANGELOG.md`。
 
 ---
 

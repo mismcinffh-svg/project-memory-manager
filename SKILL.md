@@ -52,7 +52,7 @@ Use this skill when the user says:
 2. **Automated detection**: Run `trigger_detector.py` to analyze the message
 3. **Context-based**: If discussing project completion or GitHub operations
 
-## Quick Start Guide (3 Steps)
+## Quick Start Guide (v5.0 Architecture)
 
 ### Step 1: Detect the Scenario
 Check if the current context requires project memory management:
@@ -60,8 +60,10 @@ Check if the current context requires project memory management:
 # Option A: Manual check
 # Look for keywords: 歸檔, commit, 更新版本, etc.
 
-# Option B: Automated detection
-python3 {baseDir}/scripts/trigger_detector.py --message "用戶消息內容"
+# Option B: Automated detection (v5.0 recommended)
+python3 {baseDir}/scripts/project_update_integration_v5.py \
+  --project <project-name> \
+  --detect-only
 ```
 
 ### Step 2: Find the Target Project
@@ -78,38 +80,126 @@ Locate the project in the `projects/` directory:
 | project-memory-manager | memory, archive, project | projects/project-memory-manager | active |
 ```
 
-### Step 3: Execute the Update Workflow
-Choose the appropriate command based on the scenario:
+### Step 3: Choose Your Architecture (v5.0 Key Decision)
 
-**Scenario A: Archive/Update Cabinet Content**
+#### Option A: v5.0 Guidance Mode (Recommended)
+**Philosophy**: Skills provide guidance, Agents execute operations
+```python
+# 使用 v5.0 新架構 - 獲取指引，Agent執行
+from scripts.project_update_integration_v5 import ProjectUpdateIntegrationV5
+
+# 1. 初始化（使用新架構）
+integration = ProjectUpdateIntegrationV5(use_old_components=False)
+
+# 2. 獲取完整工作流程指引
+guidance = integration.get_full_workflow_guidance(
+    project_slug="project-name",
+    update_summary=True,
+    auto_confirm=False
+)
+
+# 3. Agent根據指引執行操作
+#    - 調用 sessions_history 獲取真實對話
+#    - 調用 sessions_spawn 生成摘要
+#    - 調用 exec 執行Git操作
+#    - 所有操作都經過安全驗證
+
+print("工作流程指引:", json.dumps(guidance, indent=2))
+```
+
+#### Option B: v5.0 with GuidanceExecutor (Enhanced)
+**For Complex Workflows**: Use GuidanceExecutor to help execute guidance
+```python
+from scripts.openclaw_tools_wrapper import OpenClawToolsWrapper
+from scripts.guidance_executor import GuidanceExecutor
+
+# 1. 獲取工具指引
+tools = OpenClawToolsWrapper("project-name")
+history_guidance = tools.get_conversation_history(limit=30)
+
+# 2. 獲取執行方案
+executor = GuidanceExecutor()
+execution_scheme = tools.get_execution_scheme(history_guidance)
+
+# 3. 生成示例代碼
+example_code = tools.generate_execution_example(history_guidance, "python")
+print("示例代碼:\n", example_code)
+```
+
+#### Option C: v4.x Compatibility Mode
+**For Migration or Legacy Support**: Use v5.0 with v4.x compatibility
 ```bash
-python3 {baseDir}/scripts/project_update_integration.py \
+# 命令行方式（兼容v4.x腳本）
+python3 {baseDir}/scripts/project_update_integration_v5.py \
   --project <project-name> \
+  --use-old-components \
   --update-summary \
   --yes
+
+# Python方式
+from scripts.project_update_integration_v5 import ProjectUpdateIntegrationV5
+integration = ProjectUpdateIntegrationV5(use_old_components=True)
+success, version, details = integration.run_compatible_workflow(
+    "project-name", 
+    update_summary=True,
+    auto_confirm=False
+)
 ```
 
-**Scenario B: Version Update/Release**
-```bash
-python3 {baseDir}/scripts/project_update_integration.py \
-  --project <project-name> \
-  --no-update-summary \
-  --yes
+### Common Scenarios (v5.0 Style)
+
+#### Scenario A: Archive/Update with Guidance
+```python
+# 獲取歸檔工作流程指引
+integration = ProjectUpdateIntegrationV5(use_old_components=False)
+guidance = integration.get_archive_workflow_guidance("project-name")
+# Agent根據guidance執行歸檔操作
 ```
 
-**Scenario C: GitHub Sync Preparation**
-```bash
-# First update cabinet content, then push
-python3 {baseDir}/scripts/project_update_integration.py \
-  --project <project-name> \
-  --update-summary \
-  --yes
-# Then manually git push (or let the skill handle it)
+#### Scenario B: Version Update with Safe Git Operations
+```python
+# 使用GitToolWrapper生成安全Git操作指引
+from scripts.git_tool_wrapper import GitToolWrapper
+git_wrapper = GitToolWrapper(project_dir, use_openclaw_tools=True)
+
+# 安全Git操作指引
+add_guidance = git_wrapper.git_add(".")
+commit_guidance = git_wrapper.git_commit("更新版本")
+push_guidance = git_wrapper.git_push()
+
+# 所有指引都經過安全驗證，無subprocess風險
 ```
 
-## Expected Output
+#### Scenario C: Real Data Processing
+```python
+# 使用真實OpenClaw工具數據
+from scripts.openclaw_tools_wrapper import OpenClawToolsWrapper
+tools = OpenClawToolsWrapper("project-name")
 
-### Success Indicators
+# 真實對話歷史指引（非模擬數據）
+history_guidance = tools.get_conversation_history(limit=50)
+
+# 真實摘要生成指引
+summary_guidance = tools.spawn_summary_agent(
+    project_name="Project Name",
+    conversations=real_conversations,  # 從sessions_history獲取
+    since_time="2026-01-01T00:00:00Z"
+)
+```
+
+## Expected Output (v5.0 Architecture)
+
+### v5.0 Guidance Mode Success Indicators
+```
+✅ 安全指引生成：所有操作都經過安全驗證
+✅ 真實工具調用：使用 sessions_history 獲取真實對話
+✅ 原子操作保證：文件鎖 + 事務支持防止損壞
+✅ 零風險Git操作：所有Git命令都通過安全檢查
+✅ 完整執行方案：GuidanceExecutor提供詳細執行步驟
+✅ 向後兼容性：v4.x項目無需修改即可工作
+```
+
+### v4.x Compatibility Mode Success Indicators
 ```
 ✅ 專櫃內容已更新：projects/<project>/_latest/_history 文件
 ✅ 版本號已遞增（如果適用）
@@ -117,20 +207,84 @@ python3 {baseDir}/scripts/project_update_integration.py \
 ✅ 專案準備好 GitHub 推送
 ```
 
-### File Structure Changes
+### File Structure Changes (v5.0 Enhanced)
 ```
 projects/<project>/
-├── _latest/              # Latest summaries
+├── _latest/              # Latest summaries (v5.0原子寫入保證)
 │   ├── decisions_latest.md
 │   ├── learnings_latest.md
 │   └── technical_latest.md
-├── _history/             # Complete history
+├── _history/             # Complete history (事務保護)
 │   ├── decisions_history.md
 │   ├── learnings_history.md
 │   └── technical_history.md
-├── decisions.md          # Decision records (appended)
-├── CHANGELOG.md         # Version history
-└── project.json         # Updated version number
+├── decisions.md          # Decision records (原子追加)
+├── CHANGELOG.md         # Version history (自動更新)
+├── project.json         # Updated version number (JSON Schema驗證)
+└── .locks/              # v5.0新增：文件鎖目錄（防止併發衝突）
+```
+
+### Guidance Output Examples
+
+#### Example 1: Conversation History Guidance
+```json
+{
+  "tool": "sessions_history",
+  "action": "get_conversation_history",
+  "parameters": {
+    "sessionKey": "current",
+    "limit": 30,
+    "includeTools": false
+  },
+  "description": "獲取當前會話的對話歷史",
+  "execution_scheme": {
+    "tool_call_example": { ... },
+    "execution_steps": [ ... ],
+    "error_handling": { ... }
+  }
+}
+```
+
+#### Example 2: Git Operation Guidance
+```json
+{
+  "tool": "exec",
+  "source": "GitToolWrapper",
+  "parameters": {
+    "command": "git add .",
+    "workdir": "/safe/path/inside/workspace",
+    "timeout": 30
+  },
+  "security_checked": true,
+  "dangerous_patterns_rejected": 0
+}
+```
+
+#### Example 3: Complete Workflow Guidance
+```json
+{
+  "type": "complete_workflow",
+  "project": "project-name",
+  "architecture": "v5.0_guidance",
+  "steps": [
+    {
+      "step": 1,
+      "name": "獲取真實對話歷史",
+      "guidance": { ... },
+      "estimated_tokens": 1500,
+      "security_level": "high"
+    },
+    {
+      "step": 2,
+      "name": "生成AI摘要",
+      "guidance": { ... },
+      "estimated_tokens": 3000,
+      "security_level": "medium"
+    }
+  ],
+  "total_estimated_tokens": 7500,
+  "security_score": 95
+}
 ```
 
 ## Common Errors & Troubleshooting
@@ -177,6 +331,69 @@ projects/<project>/
    ```bash
    cat projects/<project-name>/project.json | grep github_url
    ```
+
+### Error 6: v5.0 Guidance Execution Issues
+**Symptoms:** 
+- `GuidanceExecutor not found` 或 `OpenClawToolsWrapper只生成指引，不知如何執行`
+- `參數轉換錯誤` 或 `工具調用失敗`
+
+**Solution (v5.0.1+):**
+1. **安裝GuidanceExecutor**: 確保 `guidance_executor.py` 在 scripts/ 目錄中
+2. **使用執行方案**: 通過 `get_execution_scheme()` 獲取完整執行指導
+   ```python
+   from scripts.openclaw_tools_wrapper import OpenClawToolsWrapper
+   tools = OpenClawToolsWrapper("project-name")
+   guidance = tools.get_conversation_history(limit=30)
+   execution_scheme = tools.get_execution_scheme(guidance)
+   ```
+3. **生成示例代碼**: 使用 `generate_execution_example()` 獲取可直接使用的代碼
+   ```python
+   example_code = tools.generate_execution_example(guidance, "python")
+   print(example_code)  # 顯示如何調用工具的示例代碼
+   ```
+4. **安全執行Git操作**: 始終使用 `GitToolWrapper` 而非直接 `exec`
+   ```python
+   # ❌ 危險：直接exec
+   # exec(command="git add .")  # 可能包含危險命令
+   
+   # ✅ 安全：通過GitToolWrapper
+   from scripts.git_tool_wrapper import GitToolWrapper
+   wrapper = GitToolWrapper(project_dir, use_openclaw_tools=True)
+   safe_guidance = wrapper.git_add(".")  # 經過安全檢查
+   ```
+
+### Error 7: v5.0 Security Validation Failures
+**Symptoms:**
+- `路徑不在workspace範圍內` 或 `命令包含危險模式`
+- `SecurityValidator拒絕操作`
+
+**Solution:**
+1. **檢查工作空間路徑**: 確保所有操作都在 `OPENCLAW_WORKSPACE` 環境變量指定的目錄內
+2. **使用安全命令**: 避免 `rm -rf`, `wget | sh`, `chmod 777` 等危險模式
+3. **白名單路徑**: 只操作 `projects/`, `scripts/`, `config/` 等目錄
+4. **降級到兼容模式** (臨時解決方案):
+   ```python
+   from scripts.project_update_integration_v5 import ProjectUpdateIntegrationV5
+   integration = ProjectUpdateIntegrationV5(use_old_components=True)
+   # 使用v4.x兼容模式（安全性較低）
+   ```
+
+### Error 8: Real Tool Call Failures (v5.0 vs Mock Data)
+**Symptoms:**
+- `sessions_history工具返回空數據` 或 `sessions_spawn失敗`
+- `真實工具調用與模擬數據不一致`
+
+**Solution:**
+1. **檢查工具權限**: 確認 `tools.sessions.visibility=all` 設置正確
+2. **使用模擬數據回退** (開發/測試):
+   ```python
+   # 在開發環境中使用模擬數據
+   from scripts.conversation_summary import ConversationSummary
+   summary = ConversationSummary(project_dir)
+   simulated = summary.simulate_conversation_history("project-name")
+   ```
+3. **漸進式遷移**: 先使用兼容模式，逐步遷移到真實工具調用
+4. **錯誤處理**: 實現優雅的錯誤降級機制
 
 ## GitHub Auto-Creation Mechanism
 

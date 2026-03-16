@@ -20,6 +20,14 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
 import logging
 
+# 嘗試導入GuidanceExecutor（可選依賴）
+try:
+    from guidance_executor import GuidanceExecutor
+    GUIDANCE_EXECUTOR_AVAILABLE = True
+except ImportError:
+    GUIDANCE_EXECUTOR_AVAILABLE = False
+    print("注意: GuidanceExecutor未找到，將使用基本指引模式")
+
 logger = logging.getLogger(__name__)
 
 
@@ -367,6 +375,85 @@ class OpenClawToolsWrapper:
         workflow["steps"].append(step5)
         
         return workflow
+    
+    def get_execution_scheme(self, guidance: Dict) -> Dict:
+        """
+        獲取指引的執行方案
+        
+        基於Sergio的審查反饋：OpenClawToolsWrapper只生成指引，
+        缺乏如何實際執行的指導。這個方法提供完整的執行方案。
+        
+        Args:
+            guidance: 工具調用指引（從本類的其他方法獲取）
+            
+        Returns:
+            執行方案字典，包含：
+            - tool_call_example: 工具調用示例
+            - execution_steps: 執行步驟
+            - error_handling: 錯誤處理指南
+            - parameter_validation: 參數驗證規則
+        """
+        if not GUIDANCE_EXECUTOR_AVAILABLE:
+            # 如果GuidanceExecutor不可用，返回基本信息
+            return {
+                "tool": guidance.get("tool", "unknown"),
+                "description": guidance.get("description", ""),
+                "parameters": guidance.get("parameters", {}),
+                "note": "GuidanceExecutor未安裝，請安裝後獲取完整執行方案",
+                "basic_steps": [
+                    "1. 解析指引中的參數",
+                    "2. 調用對應的OpenClaw工具",
+                    "3. 處理工具返回值",
+                    "4. 根據指引中的processing_instructions進行後續操作"
+                ]
+            }
+        
+        try:
+            # 使用GuidanceExecutor生成完整執行方案
+            executor = GuidanceExecutor()
+            execution_scheme = executor.execute_guidance(guidance)
+            
+            # 添加額外信息
+            execution_scheme["source_guidance"] = {
+                "tool": guidance.get("tool"),
+                "description": guidance.get("description"),
+                "parameters_summary": str(list(guidance.get("parameters", {}).keys()))
+            }
+            
+            return execution_scheme
+            
+        except Exception as e:
+            logger.error(f"生成執行方案失敗: {e}")
+            return {
+                "error": True,
+                "error_message": str(e),
+                "guidance": guidance,
+                "fallback_steps": [
+                    "1. 手動解析指引參數",
+                    "2. 參考OpenClaw工具文檔調用工具",
+                    "3. 處理可能的錯誤情況"
+                ]
+            }
+    
+    def generate_execution_example(self, guidance: Dict, language: str = "python") -> str:
+        """
+        生成執行示例代碼
+        
+        Args:
+            guidance: 工具調用指引
+            language: 輸出語言（python, json, generic）
+            
+        Returns:
+            示例代碼字符串
+        """
+        if not GUIDANCE_EXECUTOR_AVAILABLE:
+            return f"# GuidanceExecutor未安裝\n# 請安裝後生成{language}示例代碼"
+        
+        try:
+            executor = GuidanceExecutor()
+            return executor.generate_execution_script(guidance, language)
+        except Exception as e:
+            return f"生成示例代碼失敗: {e}"
     
     def _extract_text_content(self, content) -> str:
         """從OpenClaw消息內容中提取文本（與conversation_summary.py保持一致）"""

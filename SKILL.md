@@ -1,14 +1,14 @@
 ---
 name: project-memory-manager-v5
 description: Manage project memory and archives using OpenClaw v5.0 architecture. Use when user says '歸檔', '記錄落去', '更新專櫃', 'commit', '上github', '更新版本', '同步到github', '版本更新', '發布', 'release', or when preparing to push to GitHub. Provides guidance instead of direct execution, following OpenClaw best practices.
-metadata: {"openclaw": {"requires": {"python": true}, "user-invocable": true, "install": [{"id": "python-deps", "kind": "info", "label": "Python 3.8+ required", "note": "本技能使用Python腳本實現自動化功能"}], "version": "5.0.0", "architecture": "guidance-based"}}
+metadata: {"openclaw": {"requires": {"python": true}, "user-invocable": true, "install": [{"id": "python-deps", "kind": "info", "label": "Python 3.8+ required", "note": "本技能使用Python腳本實現自動化功能"}], "version": "5.0.2", "architecture": "guidance-based"}}
 ---
 
-# Project Memory Manager v5.0
+# Project Memory Manager v5.0.2
 
 ## Overview
 
-**Project Memory Manager v5.0** is a complete architectural redesign that follows OpenClaw's philosophy of "skills provide guidance, Agents execute." This version solves the security and architectural issues of v4.x while maintaining full backward compatibility.
+**Project Memory Manager v5.0.2** is a complete architectural redesign that follows OpenClaw's philosophy of "skills provide guidance, Agents execute." This version solves the security and architectural issues of v4.x while maintaining full backward compatibility.
 
 ### 🎯 v5.0 Key Improvements
 | 問題 | v4.x | v5.0 解決方案 |

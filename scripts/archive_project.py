@@ -243,10 +243,10 @@ class ProjectArchiveTool:
             result["success"] = True
             result["message"] = f"項目 '{project_slug}' 歸檔準備完成"
             result["next_steps"] = [
-                "1. 根據指引執行對話歷史獲取",
-                "2. 根據指引生成摘要",
-                "3. 根據計劃更新專櫃文件",
-                "4. 可選：同步到GitHub"
+                "根據指引執行對話歷史獲取",
+                "根據指引生成摘要",
+                "根據計劃更新專櫃文件",
+                "可選：同步到GitHub"
             ]
             
             logger.info(f"✅ 歸檔準備完成: {project_slug}")

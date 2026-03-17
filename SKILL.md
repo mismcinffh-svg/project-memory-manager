@@ -1,10 +1,10 @@
 ---
 name: project-memory-manager-v5
 description: Manage project memory and archives using OpenClaw v5.0 architecture. Use when user says '歸檔', '記錄落去', '更新專櫃', 'commit', '上github', '更新版本', '同步到github', '版本更新', '發布', 'release', or when preparing to push to GitHub. Provides guidance instead of direct execution, following OpenClaw best practices.
-metadata: {"openclaw": {"requires": {"python": true}, "user-invocable": true, "install": [{"id": "python-deps", "kind": "info", "label": "Python 3.8+ required", "note": "本技能使用Python腳本實現自動化功能"}], "version": "5.0.2", "architecture": "guidance-based"}}
+metadata: {"openclaw": {"requires": {"python": true}, "user-invocable": true, "install": [{"id": "python-deps", "kind": "info", "label": "Python 3.8+ required", "note": "本技能使用Python腳本實現自動化功能"}], "version": "5.0.3", "architecture": "guidance-based"}}
 ---
 
-# Project Memory Manager v5.0.2
+# Project Memory Manager v5.0.3
 
 ## Overview
 
@@ -394,6 +394,183 @@ projects/<project>/
    ```
 3. **漸進式遷移**: 先使用兼容模式，逐步遷移到真實工具調用
 4. **錯誤處理**: 實現優雅的錯誤降級機制
+
+## 🗂️ 項目歸檔操作指南 (Archive Project Guide) - v5.0.3
+
+**目標**: 30秒內完成項目歸檔，無需探索代碼或理解內部實現
+
+### 快速歸檔 (3步完成)
+
+#### 步驟1: 運行歸檔命令
+```bash
+# 基本歸檔
+python3 scripts/archive_project.py --project project-name
+
+# 帶詳細輸出
+python3 scripts/archive_project.py --project project-name --verbose
+
+# 生成可執行腳本
+python3 scripts/archive_project.py --project project-name --generate-script
+```
+
+#### 步驟2: 查看歸檔結果
+```bash
+# 查看歸檔指引和執行方案
+python3 scripts/archive_project.py --project project-name --output archive_result.json
+
+# 查看生成的專櫃文件
+ls projects/project-name/_latest/
+```
+
+#### 步驟3: 可選Git同步
+```bash
+# 如果需要同步到GitHub
+python3 scripts/project_update_integration_v5.py --project project-name --update-summary
+```
+
+### 歸檔工具功能詳解
+
+#### 1. 基本歸檔
+```bash
+# 歸檔指定項目
+python3 scripts/archive_project.py --project project-memory-manager
+
+# 指定workspace目錄
+python3 scripts/archive_project.py --project office365-skill --workspace /path/to/workspace
+
+# 控制對話歷史條數
+python3 scripts/archive_project.py --project project-name --limit 50
+
+# 只獲取指引，不生成摘要
+python3 scripts/archive_project.py --project project-name --no-summary
+```
+
+#### 2. 生成快速腳本
+```bash
+# 生成可獨立運行的歸檔腳本
+python3 scripts/archive_project.py --project project-name --generate-script
+
+# 運行生成的腳本
+python3 archive_project-name.py
+```
+
+#### 3. 獲取幫助
+```bash
+# 查看完整幫助
+python3 scripts/archive_project.py --help
+
+# 簡短幫助
+python3 scripts/archive_project.py -h
+```
+
+### 歸檔流程詳解 (內部工作原理)
+
+```
+歸檔執行流程:
+1. ✅ 安全驗證: 路徑白名單 + 命令黑名單檢查
+2. ✅ 指引生成: 獲取歸檔工作流程指引
+3. ✅ 對話歷史: 生成sessions_history工具調用指引
+4. ✅ 摘要生成: 生成sessions_spawn摘要指引
+5. ✅ 執行方案: 生成詳細執行步驟和示例代碼
+6. ✅ 文件更新: 準備專櫃文件更新計劃
+```
+
+### 示例: 完整歸檔項目
+
+```bash
+# 示例1: 歸檔project-memory-manager項目
+python3 scripts/archive_project.py --project project-memory-manager --verbose --output pm_archive.json
+
+# 示例2: 生成並運行歸檔腳本
+python3 scripts/archive_project.py --project office365-skill --generate-script
+python3 archive_office365-skill.py
+
+# 示例3: 批量歸檔多個項目
+for project in project1 project2 project3; do
+    python3 scripts/archive_project.py --project $project --no-summary
+done
+```
+
+### 預期輸出
+
+```
+🚀 開始歸檔項目: project-name
+📋 生成歸檔工作流程指引...
+💬 獲取對話歷史指引...
+📝 生成摘要指引...
+🔧 生成執行方案...
+📁 準備更新專櫃文件...
+✅ 項目 'project-name' 歸檔準備完成
+   項目: project-name
+   時間: 2026-03-17T00:30:00.000000
+   完成步驟: 5
+   
+📋 下一步:
+   1. 根據指引執行對話歷史獲取
+   2. 根據指引生成摘要
+   3. 根據計劃更新專櫃文件
+   4. 可選：同步到GitHub
+   
+💡 提示: 使用 --generate-script 生成可執行的歸檔腳本
+```
+
+### 常見問題 (FAQ)
+
+#### Q1: 歸檔工具與v5.0哲學矛盾嗎？
+**A**: 不矛盾。歸檔工具仍然遵循「技能提供指引」原則：
+- 工具生成詳細的執行指引和示例代碼
+- Agent仍然需要根據指引執行實際操作
+- 工具提供「立即可用」的起點，而不是完全自動化
+
+#### Q2: 如何處理真實工具調用失敗？
+**A**: 工具包含錯誤處理和降級機制：
+- 真實工具失敗時提供清晰的錯誤信息
+- 可選使用模擬數據進行開發和測試
+- 生成替代執行方案
+
+#### Q3: 歸檔後文件在哪裡？
+**A**: 歸檔內容保存在：
+- `projects/<project-name>/_latest/` - 最新摘要
+- `projects/<project-name>/_history/` - 完整歷史
+- `projects/<project-name>/decisions.md` - 決策記錄
+- `projects/<project-name>/learnings_latest.md` - 最新學習點
+
+#### Q4: 可以自動同步到GitHub嗎？
+**A**: 可以，但需要額外步驟：
+```bash
+# 先歸檔
+python3 scripts/archive_project.py --project project-name
+
+# 再同步到GitHub
+python3 scripts/project_update_integration_v5.py --project project-name --update-summary
+```
+
+### 與舊版對比
+
+| 功能 | v4.x | v5.0.3歸檔工具 |
+|------|------|----------------|
+| **執行時間** | 需要探索代碼 (~15分鐘) | 30秒內完成 |
+| **命令行** | 無專用歸檔命令 | `archive_project.py --project xxx` |
+| **文檔指引** | 需要理解哲學 | 具體操作步驟 |
+| **錯誤處理** | 簡單 | 詳細錯誤信息和建議 |
+| **輸出結果** | 分散 | 統一JSON輸出 |
+
+### 開發者提示
+
+對於需要自定義歸檔流程的開發者：
+
+```python
+# 直接使用歸檔工具類
+from scripts.archive_project import ProjectArchiveTool
+
+tool = ProjectArchiveTool()
+result = tool.archive_project("project-name", limit=50)
+
+# 生成自定義腳本
+script = tool.generate_quick_archive_script("project-name")
+with open("custom_archive.py", "w") as f:
+    f.write(script)
+```
 
 ## GitHub Auto-Creation Mechanism
 
